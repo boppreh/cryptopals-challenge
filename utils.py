@@ -2,6 +2,7 @@ import math
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations_with_replacement
 
+bin_chars = '01'
 hex_chars = '0123456789abcdef'
 
 def get_chars_per_byte(base_chars):
@@ -13,6 +14,13 @@ def get_chars_per_byte(base_chars):
     assert chars_per_byte == int(chars_per_byte), chars_per_byte
     return  int(chars_per_byte)
 
+def divide(items, block_size):
+    """
+    Divides a list of items into blocks of `block_size`. The last block contains
+    the remaining items even if there are less than `block_size` of them.
+    """
+    return [items[i*block_size:(i+1)*block_size] for i in range(math.ceil(len(items)/block_size))]
+
 def decode_base(string, base_chars):
     """
     Decodes the given string in a byte array by using the given base.
@@ -23,8 +31,7 @@ def decode_base(string, base_chars):
     assert len(string) % chars_per_byte == 0
     string = string.lower()
 
-    groups = [string[i:i+chars_per_byte]
-              for i in range(0, len(string), chars_per_byte)]
+    groups = divide(string, chars_per_byte)
     return bytes(sum(base_chars.index(char) * len(base_chars) ** i
                      for i, char in enumerate(reversed(group)))
                  for group in groups)
@@ -47,6 +54,8 @@ def encode_base(bytes, base_chars):
 
 from_hex = lambda string: decode_base(string, hex_chars)
 to_hex = lambda bytes: encode_base(bytes, hex_chars)
+from_bin = lambda string: decode_base(string, bin_chars)
+to_bin = lambda bytes: encode_base(bytes, bin_chars)
 from_base64 = lambda string: b64decode(string)
 to_base64 = lambda bytes: b64encode(bytes).decode('ascii')
 
@@ -81,6 +90,28 @@ def read(path):
     """ Return the binary contents of a file. """
     with open(path, 'rb') as f:
         return f.read()
+
+def hamming_distance(a, b):
+    """
+    Computes the hamming distance between two byte arrays, the number of
+    differing bits.
+    """
+    return sum(to_bin([x^y]).count('1') for x, y in zip(a, b))
+
+def break_single_byte_xor(ciphertext):
+    """
+    If ciphertext was encrypted with XOR using a single-byte key, brute forces
+    the key and looks for the most English looking plaintext.
+
+    Returns score, key, plaintext.
+    """
+    best_triple = (-1, -1, '')
+    for key in range(0xFF):
+        plaintext = xor_decrypt(key, ciphertext)
+        score = english_score(plaintext)
+        if score > best_triple[0]:
+            best_triple = (score, key, plaintext)
+    return best_triple
 
 if __name__ == '__main__':
     import os
