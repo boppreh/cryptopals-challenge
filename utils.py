@@ -1,6 +1,6 @@
 import math
 from base64 import b64encode, b64decode
-from itertools import chain, cycle, repeat
+from itertools import chain, cycle, repeat, count, combinations_with_replacement
 
 hex_chars = '0123456789abcdef'
 
@@ -64,15 +64,23 @@ def xor_encrypt(key, a):
 xor_decrypt = xor_encrypt
 
 def is_ascii_text(bytes):
+    """ Returns True if all characters are ASCII printable. """
     return all(32 <= b <= 126 or b == 10 for b in bytes)
 def is_letter(byte):
+    """ Returns True if byte is an ASCII letter between A and Z. """
     return 'a' <= chr(byte).lower() <= 'z'
 
 ENGLISH_FREQUENCY = 'zqxjkvbpygfwmucldrhsnioate'
 
 def english_score(bytes):
+    """ Returns a number representing the English-ness of a byte array. """
     if not is_ascii_text(bytes): return 0
     return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) for b in bytes if is_letter(b))
+
+def read(path):
+    """ Return the binary contents of a file. """
+    with open(path, 'rb') as f:
+        return f.read()
 
 if __name__ == '__main__':
     import os
