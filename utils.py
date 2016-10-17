@@ -52,3 +52,7 @@ from_hex = lambda string: decode_base(string, hex_chars)
 to_hex = lambda bytes: encode_base(bytes, hex_chars)
 from_base64 = lambda string: b64decode(string)
 to_base64 = lambda bytes: b64encode(bytes).decode('ascii')
+
+def xor(a, b):
+    assert len(a) == len(b)
+    return bytes(x^y for x, y in zip(a, b))
