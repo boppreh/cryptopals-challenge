@@ -1,6 +1,6 @@
 import math
 from base64 import b64encode, b64decode
-from itertools import chain, cycle, repeat, count, combinations_with_replacement
+from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -82,22 +82,22 @@ def is_letter(byte):
 
 ENGLISH_FREQUENCY = 'zqxjkvbpygfwmucldrhsnioate'
 
-def english_score(bytes, reject_non_ascii=True):
+def english_score(bytes, non_ascii_discount=-5000):
     """ Returns a number representing the English-ness of a byte array. """
-    if reject_non_ascii and not is_ascii_text(bytes): return 0
-    return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) for b in bytes if is_letter(b))
+    return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) if is_letter(b)
+               else (not is_ascii_text([b])) * non_ascii_discount for b in bytes) / len(bytes)
 
 def read(path):
     """ Return the binary contents of a file. """
     with open(path, 'rb') as f:
         return f.read()
 
-def hamming_distance(a, b):
+def hamming_distance(*lists):
     """
-    Computes the hamming distance between two byte arrays, the number of
-    differing bits.
+    Computes the number of different bits between pairwise byte arrays.
     """
-    return sum(to_bin([x^y]).count('1') for x, y in zip(a, b))
+    pairs = [(a, b) for a, b in zip(lists, lists[1:])]
+    return sum(sum(to_bin([x^y]).count('1') for x, y in zip(a, b)) for a, b in pairs) / len(pairs)
 
 def break_single_byte_xor(ciphertext, measure=english_score):
     """
@@ -109,17 +109,20 @@ def break_single_byte_xor(ciphertext, measure=english_score):
     keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0xFF)]
     return sorted([(measure(p), k, p) for k, p in keys_and_plaintexts], reverse=True)
 
-def break_multi_byte_xor(ciphertext, keysize):
-    measure = lambda p: (-len(repr(p)), english_score(p, reject_non_ascii=False))
+def break_multi_byte_xor(ciphertext, keysize, limit_subkey=1):
+    measure = lambda p: english_score(p)
     blocks = divide(ciphertext, keysize)
     if len(ciphertext) % keysize:
         blocks.pop()
     transposed = list(zip(*blocks))
-    breaks = [break_single_byte_xor(t, measure)[0] for t in transposed]
-    plaintext = b''.join(p for s, k, p in breaks)
-    key = bytes(k for s, k, p in breaks)
-    score = sum(k for s, k, p in breaks)
-    return score, key, plaintext
+    best_by_subkey = [break_single_byte_xor(t, measure)[:limit_subkey] for t in transposed]
+    breaks = set()
+    for subparts in product(*best_by_subkey):
+        score = sum(s for s, k, p in subparts)
+        key = bytes(k for s, k, p in subparts)
+        transposed_plaintext = (p for s, k, p in subparts)
+        breaks.add((score, key, xor_decrypt(key, ciphertext)))
+    return sorted(breaks, reverse=True)
 
 def graph(data):
     """
@@ -131,10 +134,9 @@ def graph(data):
     """
     max_key_length = max(len(str(i)) for i in data.keys())
     top = max(data.values())
-    bottom = min(data.values())
-    scaling = 40 / (top - bottom)
+    scaling = 40 / top
     for key, value in data.items():
-        print(str(key).ljust(max_key_length), '=' * int(value * scaling))
+        print(str(key).ljust(max_key_length), '=' * int(value * scaling), value)
 
 if __name__ == '__main__':
     import os
