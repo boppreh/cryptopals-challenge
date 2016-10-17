@@ -64,7 +64,7 @@ def xor_encrypt(key, a):
 xor_decrypt = xor_encrypt
 
 def is_ascii_text(bytes):
-    return all(32 <= b <= 126 for b in bytes)
+    return all(32 <= b <= 126 or b == 10 for b in bytes)
 
 ENGLISH_FREQUENCY = 'etaoinshrdlcumwfgypbvkjxqz'
 def english_score(bytes):
