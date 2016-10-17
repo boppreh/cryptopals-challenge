@@ -74,16 +74,17 @@ xor_decrypt = xor_encrypt
 
 def is_ascii_text(bytes):
     """ Returns True if all characters are ASCII printable. """
-    return all(32 <= b <= 126 or b == 10 for b in bytes)
+    return all(32 <= b <= 126 or b in (9, 10, 13) for b in bytes)
+
 def is_letter(byte):
     """ Returns True if byte is an ASCII letter between A and Z. """
     return 'a' <= chr(byte).lower() <= 'z'
 
 ENGLISH_FREQUENCY = 'zqxjkvbpygfwmucldrhsnioate'
 
-def english_score(bytes):
+def english_score(bytes, reject_non_ascii=True):
     """ Returns a number representing the English-ness of a byte array. """
-    if not is_ascii_text(bytes): return 0
+    if reject_non_ascii and not is_ascii_text(bytes): return 0
     return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) for b in bytes if is_letter(b))
 
 def read(path):
@@ -98,20 +99,42 @@ def hamming_distance(a, b):
     """
     return sum(to_bin([x^y]).count('1') for x, y in zip(a, b))
 
-def break_single_byte_xor(ciphertext):
+def break_single_byte_xor(ciphertext, measure=english_score):
     """
     If ciphertext was encrypted with XOR using a single-byte key, brute forces
     the key and looks for the most English looking plaintext.
 
-    Returns score, key, plaintext.
+    Returns a a list of (score, key, plaintext) triples, ordered by score.
     """
-    best_triple = (-1, -1, '')
-    for key in range(0xFF):
-        plaintext = xor_decrypt(key, ciphertext)
-        score = english_score(plaintext)
-        if score > best_triple[0]:
-            best_triple = (score, key, plaintext)
-    return best_triple
+    keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0xFF)]
+    return sorted([(measure(p), k, p) for k, p in keys_and_plaintexts], reverse=True)
+
+def break_multi_byte_xor(ciphertext, keysize):
+    measure = lambda p: (-len(repr(p)), english_score(p, reject_non_ascii=False))
+    blocks = divide(ciphertext, keysize)
+    if len(ciphertext) % keysize:
+        blocks.pop()
+    transposed = list(zip(*blocks))
+    breaks = [break_single_byte_xor(t, measure)[0] for t in transposed]
+    plaintext = b''.join(p for s, k, p in breaks)
+    key = bytes(k for s, k, p in breaks)
+    score = sum(k for s, k, p in breaks)
+    return score, key, plaintext
+
+def graph(data):
+    """
+    graph({'a': 2, 'b': 5, 'c': 3})
+
+    a ==========================
+    c ========================================
+    b ==================================================================
+    """
+    max_key_length = max(len(str(i)) for i in data.keys())
+    top = max(data.values())
+    bottom = min(data.values())
+    scaling = 40 / (top - bottom)
+    for key, value in data.items():
+        print(str(key).ljust(max_key_length), '=' * int(value * scaling))
 
 if __name__ == '__main__':
     import os
