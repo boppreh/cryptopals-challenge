@@ -54,5 +54,24 @@ from_base64 = lambda string: b64decode(string)
 to_base64 = lambda bytes: b64encode(bytes).decode('ascii')
 
 def xor(a, b):
+    """ XORs two equal length byte arrays. """
     assert len(a) == len(b)
     return bytes(x^y for x, y in zip(a, b))
+
+def xor_encrypt(key, a):
+    """ XORs a byte array with a single-byte key repeated. """
+    return xor([key] * len(a), a)
+xor_decrypt = xor_encrypt
+
+def is_ascii_text(bytes):
+    return all(32 <= b <= 126 for b in bytes)
+
+ENGLISH_FREQUENCY = 'etaoinshrdlcumwfgypbvkjxqz'
+def english_score(bytes):
+    if not is_ascii_text(bytes): return 0
+    score = 0
+    for b in bytes:
+        char = chr(b).lower()
+        if 'a' <= char <= 'z':
+            score += len(ENGLISH_FREQUENCY) - ENGLISH_FREQUENCY.index(char)
+    return score
