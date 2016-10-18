@@ -179,13 +179,19 @@ def graph(data):
 
 def aes_decrypt_ecb(key, ciphertext):
     """
-    Decrypts a ciphertext encrypted with AES.
+    Decrypts a ciphertext encrypted with AES in ECB mode.
     """
     aes = AES(key)
     decrypted_blocks = [aes.decrypt_block(b) for b in divide(ciphertext, AES.BLOCK_SIZE)]
-    padding_length = decrypted_blocks[-1][-1]
-    decrypted_blocks[-1] = decrypted_blocks[-1][:-padding_length]
-    return b''.join(decrypted_blocks)
+    return unpad_pkcs7(b''.join(decrypted_blocks))
+
+def aes_encrypt_ecb(key, plaintext):
+    """
+    Encrypts a plaintext using AES in ECB mode.
+    """
+    aes = AES(key)
+    padded = pad_pkcs7(plaintext)
+    return b''.join(aes.encrypt_block(b) for b in divide(padded, AES.BLOCK_SIZE))
 
 def detect_aes_ecb(ciphertext):
     """
@@ -195,6 +201,15 @@ def detect_aes_ecb(ciphertext):
     """
     blocks = divide(ciphertext, AES.BLOCK_SIZE)
     return len(set(blocks)) != len(blocks)
+
+def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
+    """
+    Removes a PKCS#7 padding by removing the last `n` bytes, where `n` is the
+    last byte.
+    """
+    padding = padded[-1]
+    assert 0 < padding <= block_size
+    return padded[:-padding]
 
 def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     """
