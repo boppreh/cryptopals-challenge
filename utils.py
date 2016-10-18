@@ -269,16 +269,18 @@ def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     Removes a PKCS#7 padding by removing the last `n` bytes, where `n` is the
     last byte.
     """
-    padding = padded[-1]
-    assert 0 < padding <= block_size
-    return padded[:-padding]
+    padding_length = padded[-1]
+    assert 0 < padding_length <= block_size
+    padding = padded[-padding_length:]
+    assert padding == bytes([padding_length]) * padding_length
+    return padded[:-padding_length]
 
 def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     """
     Pads a byte array according to PKCS#7, adding `n` times the byte `n`.
     """
-    padding = block_size - (len(text) % block_size)
-    return text + bytes([padding]) * padding
+    padding_length = block_size - (len(text) % block_size)
+    return text + bytes([padding_length]) * padding_length
 
 def encryption_oracle(text, key=None, mode=None, append=None, prepend=None):
     """
@@ -305,8 +307,47 @@ def detect_mode(encrypt):
     # By providing a message that spans (almost) three blocks we ensure that
     # at least two full blocks will contain the same plaintext, regardless of
     # how much data is before or after our message.
-    data = (AES.BLOCK_SIZE * 3 - 1) * b'a'
+    data = (AES.BLOCK_SIZE * 3 - 1) * b'A'
     return 'ecb' if detect_aes_ecb(encrypt(data)) else 'cbc'
+
+def detect_blocks(encrypt):
+    """
+    Given an encryption oracle, encrypts messages of differentes sizes to
+    detect the block size and number of blocks.
+    """
+    minimum_size = len(encrypt(b''))
+    for i in count(1):
+        size = len(encrypt(b'A' * i))
+        if size != minimum_size:
+            block_size = size - minimum_size
+            n_blocks = minimum_size / block_size
+            assert int(n_blocks) == n_blocks
+            return (block_size, int(n_blocks))
+
+def get_block(text, block_number, block_size=AES.BLOCK_SIZE):
+    return text[block_number*block_size:(block_number+1)*block_size]
+
+def break_aes_ecb_oracle(encrypt):
+    # We expect block_size to be 16 (AES.BLOCK_SIZE), but just to be sure.
+    block_size, n_blocks  = detect_blocks(encrypt)
+    # This is expected, but also a hard requirement.
+    assert detect_mode(encrypt) == 'ecb'
+
+    plaintext_so_far = b''
+
+    for block_number in range(n_blocks):
+        for i in range(1, block_size+1):
+            bait = b'A' * (block_size - i)
+            block = get_block(encrypt(bait), block_number, block_size)
+            for b in range(0xFF):
+                char = bytes([b])
+                candidate = bait + plaintext_so_far + char
+                candidate_block = get_block(encrypt(candidate), block_number, block_size)
+                if candidate_block == block:
+                    plaintext_so_far += char
+                    break
+
+    return unpad_pkcs7(plaintext_so_far)
 
 if __name__ == '__main__':
     import os
