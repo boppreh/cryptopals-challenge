@@ -179,7 +179,7 @@ def graph(data):
 
 def aes_decrypt_ecb(key, ciphertext):
     """
-    Decrypts a ciphertext encrypted with AES in ECB mode.
+    Decrypts a ciphertext that was encrypted with AES in ECB mode.
     """
     aes = AES(key)
     decrypted_blocks = [aes.decrypt_block(b) for b in divide(ciphertext, AES.BLOCK_SIZE)]
@@ -201,6 +201,28 @@ def detect_aes_ecb(ciphertext):
     """
     blocks = divide(ciphertext, AES.BLOCK_SIZE)
     return len(set(blocks)) != len(blocks)
+
+def aes_decrypt_cbc(key, ciphertext, iv=None):
+    """
+    Decrypts a ciphertext that was encrypted with AES en CBC mode. If IV is not
+    given take the first ciphertext block.
+    """
+    aes = AES(key)
+
+    encrypted_blocks = divide(ciphertext, AES.BLOCK_SIZE)
+    if not iv:
+        iv = encrypted_blocks.pop(0)
+
+    decrypted_blocks = []
+    previous = iv
+    for block in encrypted_blocks:
+        text = xor(previous, aes.decrypt_block(block))
+        previous = block
+        decrypted_blocks.append(text)
+
+    return unpad_pkcs7(b''.join(decrypted_blocks))
+
+#def aes_encrypt_cbc(key, plaintext):
 
 def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     """
