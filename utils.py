@@ -1,8 +1,9 @@
 import math
+import os
+import re
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
 from aes import AES
-import os
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -348,6 +349,29 @@ def break_aes_ecb_oracle(encrypt):
                     break
 
     return unpad_pkcs7(plaintext_so_far)
+
+def decode_k_v(text):
+    """
+    Returns a dictionary for a key-value string.
+    
+        >>> decode_k_v('foo=bar&baz=qux&zap=zazzle')
+        {'foo': 'bar', 'baz': 'qux', 'zap': 'zazzle'}
+    """
+    return dict(re.findall(r'([^=]+)=([^&]+)&?', text))
+
+def encode_k_v(obj):
+    """
+    Converts a dictionary to a key-value string.
+
+        >>> encode_k_v({'foo': 'bar', 'baz': 'qux', 'zap': 'zazzle'})
+        'foo=bar&baz=qux&zap=zazzle'
+    """
+    parts = []
+    for key, value in obj.items():
+        if '&' in key or '&' in value or '=' in key or '=' in value:
+            raise ValueError('Invalid character.')
+        parts.append('{}={}'.format(key, value))
+    return '&'.join(parts)
 
 if __name__ == '__main__':
     import os
