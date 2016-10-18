@@ -199,6 +199,8 @@ class AES(object):
     management. Unless you need that, please use `encrypt` and `decrypt`.
     """
     rounds_by_key_size = {16: 10, 24: 12, 32: 14}
+    BLOCK_SIZE = 16
+
     def __init__(self, master_key):
         """
         Initializes the object with a given key.

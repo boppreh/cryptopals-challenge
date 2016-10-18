@@ -1,6 +1,7 @@
 import math
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
+from aes import AES
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -175,6 +176,13 @@ def graph(data):
     scaling = 40 / top
     for key, value in data.items():
         print(str(key).ljust(max_key_length), '=' * int(value * scaling), value)
+
+def aes_decrypt_ecb(key, ciphertext):
+    aes = AES(key)
+    decrypted_blocks = [aes.decrypt_block(b) for b in divide(ciphertext, AES.BLOCK_SIZE)]
+    padding_length = decrypted_blocks[-1][-1]
+    decrypted_blocks[-1] = decrypted_blocks[-1][:-padding_length]
+    return b''.join(decrypted_blocks)
 
 if __name__ == '__main__':
     import os
