@@ -280,15 +280,15 @@ def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     padding = block_size - (len(text) % block_size)
     return text + bytes([padding]) * padding
 
-def encryption_oracle(text, override_mode=None):
+def encryption_oracle(text, key=None, mode=None, append=None, prepend=None):
     """
     Randomly appends and prepends data to text, then encrypt it with AES in
     either CBC or ECB mode (50%/50%). In case of CBC mode the IV is also random.
     """
-    mode = override_mode if override_mode is not None else ['ecb', 'cbc'][random_bool()]
-    key = random_bytes(16)
-    prepend = random_bytes(random_number(5, 11))
-    append = random_bytes(random_number(5, 11))
+    mode = mode or ['ecb', 'cbc'][random_bool()]
+    key = key or random_bytes(16)
+    prepend = prepend if prepend is not None else random_bytes(random_number(5, 11))
+    append = append if append is not None else random_bytes(random_number(5, 11))
     plaintext = prepend + text + append
     if mode == 'cbc':
         iv = random_bytes(AES.BLOCK_SIZE)
