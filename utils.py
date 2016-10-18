@@ -2,6 +2,7 @@ import math
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
 from aes import AES
+import os
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -222,7 +223,46 @@ def aes_decrypt_cbc(key, ciphertext, iv=None):
 
     return unpad_pkcs7(b''.join(decrypted_blocks))
 
-#def aes_encrypt_cbc(key, plaintext):
+def aes_encrypt_cbc(key, ciphertext, iv):
+    """
+    Encrypts a plaintext using AES in CBC mode.
+    """
+    aes = AES(key)
+
+    previous = iv
+    encrypted_blocks = []
+    for block in divide(pad_pkcs7(ciphertext), AES.BLOCK_SIZE):
+        encrypted_block = aes.encrypt_block(xor(previous, block))
+        encrypted_blocks.append(encrypted_block)
+        previous = encrypted_block
+
+    return b''.join(encrypted_blocks)
+
+def random_bool():
+    """
+    Returns a random boolean value.
+    """
+    return ord(random_bytes(1)) % 2
+
+def random_number(start, end=None):
+    """
+    Returns a random number in the interval [start, end).
+    """
+    if end is None:
+        end = start
+        start = 0
+
+    while True:
+        # This looks stupid, but avoids biases. Using mod is not as balanced.
+        number = ord(random_bytes(1))
+        if start <= number < end:
+            return number
+
+def random_bytes(n_bytes):
+    """
+    Returns a random byte array of length `n_bytes`.
+    """
+    return os.urandom(n_bytes)
 
 def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     """
@@ -239,6 +279,34 @@ def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     """
     padding = block_size - (len(text) % block_size)
     return text + bytes([padding]) * padding
+
+def encryption_oracle(text, override_mode=None):
+    """
+    Randomly appends and prepends data to text, then encrypt it with AES in
+    either CBC or ECB mode (50%/50%). In case of CBC mode the IV is also random.
+    """
+    mode = override_mode if override_mode is not None else ['ecb', 'cbc'][random_bool()]
+    key = random_bytes(16)
+    prepend = random_bytes(random_number(5, 11))
+    append = random_bytes(random_number(5, 11))
+    plaintext = prepend + text + append
+    if mode == 'cbc':
+        iv = random_bytes(AES.BLOCK_SIZE)
+        return aes_encrypt_cbc(key, plaintext, iv)
+    else:
+        return aes_encrypt_ecb(key, plaintext)
+
+def detect_mode(encrypt):
+    """
+    Use the provided function to encrypt one specific plaintext (plus random
+    data appended and prepended), then returns if the block cipher mode is ECB
+    or CBC.
+    """
+    # By providing a message that spans (almost) three blocks we ensure that
+    # at least two full blocks will contain the same plaintext, regardless of
+    # how much data is before or after our message.
+    data = (AES.BLOCK_SIZE * 3 - 1) * b'a'
+    return 'ecb' if detect_aes_ecb(encrypt(data)) else 'cbc'
 
 if __name__ == '__main__':
     import os
