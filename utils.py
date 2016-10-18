@@ -196,6 +196,10 @@ def detect_aes_ecb(ciphertext):
     blocks = divide(ciphertext, AES.BLOCK_SIZE)
     return len(set(blocks)) != len(blocks)
 
+def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
+    padding = AES.BLOCK_SIZE - (len(text) % AES.BLOCK_SIZE)
+    return text + bytes([padding]) * padding
+
 if __name__ == '__main__':
     import os
     for name in sorted(os.listdir('.')):
