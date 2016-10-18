@@ -4,7 +4,7 @@ import re
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
 from aes import AES
-from collections import OrderedDict, Counter
+from collections import Counter
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -367,35 +367,6 @@ def break_aes_ecb_oracle(encrypt):
                     break
 
     return unpad_pkcs7(plaintext_so_far)
-
-def decode_k_v(text):
-    """
-    Returns a dictionary for a key-value string.
-    
-        >>> decode_k_v('foo=bar&baz=qux&zap=zazzle')
-        {'foo': 'bar', 'baz': 'qux', 'zap': 'zazzle'}
-    """
-    return OrderedDict(re.findall(b'([^=]*)=([^&]*)&?', text))
-
-def encode_k_v(obj):
-    """
-    Converts a dictionary to a key-value string.
-
-        >>> encode_k_v({'foo': 'bar', 'baz': 'qux', 'zap': 'zazzle'})
-        'foo=bar&baz=qux&zap=zazzle'
-    """
-    parts = []
-    for key, value in obj.items():
-        if b'&' in key or b'&' in value or b'=' in key or b'=' in value:
-            raise ValueError('Invalid character.')
-        parts.append(key + b'=' + value)
-    return b'&'.join(parts)
-
-def profile_for(email):
-    """
-    Generates a dummy user profile with the given email.
-    """
-    return OrderedDict([(b'email', email), (b'uid', b'10'), (b'role', b'user')])
 
 def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'A'):
     """
