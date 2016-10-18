@@ -387,16 +387,16 @@ def profile_for(email):
     """
     return OrderedDict([(b'email', email), (b'uid', b'10'), (b'role', b'user')])
 
-def replace_tail_aes_ecb_oracle(encrypt, tail, replacement):
+def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'A'):
     """
     Given an oracle
 
         encrypt(input) = aes_ecb_encrypt(key, prefix + input + suffix + tail)
 
-    , the `tail` value (or just the its length) and desired `replacement`,
-    returns a ciphertext such that
+    with a known `tail` value (or just its length) and a desired `replacement`,
+    returns a tuple (padding, ciphertext) such that
 
-        ciphertext = aes_ecb_encrypt(key, prefix + injected + suffix + replacement)
+        ciphertext = aes_ecb_encrypt(key, prefix + padding + suffix + replacement)
     """
     if isinstance(tail, str):
         tail_length = len(tail)
@@ -406,7 +406,7 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement):
     block_size, n_blocks, plaintext_size = detect_blocks(encrypt)
     last_block_length = plaintext_size % block_size
 
-    bait = b'A' * (block_size - last_block_length + tail_length)
+    bait = padding_character * (block_size - last_block_length + tail_length)
     # This makes our target spill over to a block by itself, which we discard.
     good_blocks = divide(encrypt(bait), AES.BLOCK_SIZE)[:-1]
 
@@ -425,7 +425,7 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement):
             break
 
     ciphertext = b''.join(good_blocks) + fake_ciphertext_block
-    return ciphertext
+    return bait, ciphertext
 
 if __name__ == '__main__':
     import os
