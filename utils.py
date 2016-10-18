@@ -387,32 +387,35 @@ def profile_for(email):
     """
     return OrderedDict([(b'email', email), (b'uid', b'10'), (b'role', b'user')])
 
-def insert_aes_ecb_oracle(encrypt, test, replacement):
+def replace_tail_aes_ecb_oracle(encrypt, tail, replacement):
     """
-    Returns a ciphertext such that
+    Given an oracle
 
-        test(insert_aes_ecb_oracle(encrypt, test, replacement)) == replacement
+        encrypt(input) = aes_ecb_encrypt(key, prefix + input + suffix + tail)
 
-    - encrypt(value) = aes_ecb_encrypt(key, encode_structure(value))
-    - test(ciphertext) = decode_structure(aes_ecb_decrypt(key, ciphertext)).attribute
-    - replacement = string to replace the attribute
+    , the `tail` value (or just the its length) and desired `replacement`,
+    returns a ciphertext such that
 
-    Note: the attribute must be encoded in the very end of the plaintext.
+        ciphertext = aes_ecb_encrypt(key, prefix + injected + suffix + replacement)
     """
+    if isinstance(tail, str):
+        tail_length = len(tail)
+    elif isinstance(tail, int):
+        tail_length = tail
+
     block_size, n_blocks, plaintext_size = detect_blocks(encrypt)
     last_block_length = plaintext_size % block_size
 
-    empty_ciphertext = encrypt(b'')
-    # Value we want to replace.
-    default = test(empty_ciphertext)
-
-    bait = b'A' * (block_size - last_block_length + len(default))
+    bait = b'A' * (block_size - last_block_length + tail_length)
     # This makes our target spill over to a block by itself, which we discard.
     good_blocks = divide(encrypt(bait), AES.BLOCK_SIZE)[:-1]
 
     fake_plaintext_block = pad_pkcs7(replacement)
-    # Arbitrary value > 1. We will use it to find where in the ciphertext our
-    # injection ended up.
+
+    # Find the placement of our input by testing different left paddings and
+    # seeing which one generates a ciphertext with repeated blocks, meaning
+    # the input aligned with the start of a block.
+    # TODO: more elegant solution.
     replications = 2
     for i in range(block_size):
         infected_ciphertext = encrypt(b'A' * i + replications * fake_plaintext_block)
@@ -422,7 +425,6 @@ def insert_aes_ecb_oracle(encrypt, test, replacement):
             break
 
     ciphertext = b''.join(good_blocks) + fake_ciphertext_block
-    assert test(ciphertext) == replacement
     return ciphertext
 
 if __name__ == '__main__':

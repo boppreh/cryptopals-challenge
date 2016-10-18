@@ -15,4 +15,4 @@ assert detect_mode(encrypt) == 'ecb'
 test = lambda ciphertext: decode_k_v(aes_ecb_decrypt(random_key, ciphertext))[b'role']
 assert test(encrypt(b'me')) == b'user'
 
-assert test(insert_aes_ecb_oracle(encrypt, test, b'admin',)) == b'admin'
+assert test(replace_tail_aes_ecb_oracle(encrypt, len('user'), b'admin',)) == b'admin'
