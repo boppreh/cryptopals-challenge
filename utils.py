@@ -145,6 +145,7 @@ def graph(data):
 
 if __name__ == '__main__':
     import os
-    for name in os.listdir('.'):
+    for name in sorted(os.listdir('.')):
         if name.endswith('.py') and name != 'utils.py':
-            os.system('python3 ' + name)
+            print('Testing {}...'.format(name))
+            os.system('python3 "{}"'.format(name))
