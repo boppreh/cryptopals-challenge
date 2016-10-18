@@ -82,10 +82,10 @@ def is_letter(byte):
 
 ENGLISH_FREQUENCY = 'zqxjkvbpygfwmucldrhsnioate'
 
-def english_score(bytes, non_ascii_discount=-5000):
+def english_score(bytes, skip_non_ascii=True):
     """ Returns a number representing the English-ness of a byte array. """
-    return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) if is_letter(b)
-               else (not is_ascii_text([b])) * non_ascii_discount for b in bytes) / len(bytes)
+    if skip_non_ascii and not is_ascii_text(bytes): return 0
+    return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) if is_letter(b) else 0 for b in bytes) / len(bytes)
 
 def read(path):
     """ Return the binary contents of a file. """
@@ -109,8 +109,16 @@ def break_single_byte_xor(ciphertext, measure=english_score):
     keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0xFF)]
     return sorted([(measure(p), k, p) for k, p in keys_and_plaintexts], reverse=True)
 
-def break_multi_byte_xor(ciphertext, keysize):
-    measure = lambda p: english_score(p)
+def break_multi_byte_xor_keysize(ciphertext, expected_range=range(1, 65)):
+    keysize_scoring = lambda k: hamming_distance(*divide(ciphertext, k)[:2]) / k
+    return sorted(expected_range, key=keysize_scoring)
+
+def break_multi_byte_xor(ciphertext, keysize=range(1, 65), measure=english_score):
+    if isinstance(keysize, range):
+        keysizes = break_multi_byte_xor_keysize(ciphertext, keysize)
+        breaks = (break_multi_byte_xor(ciphertext, keysize) for keysize in keysizes)
+        return sorted(breaks, reverse=True)[0]
+
     blocks = divide(ciphertext, keysize)
     if len(ciphertext) % keysize:
         blocks.pop()
