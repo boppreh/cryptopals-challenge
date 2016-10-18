@@ -178,11 +178,23 @@ def graph(data):
         print(str(key).ljust(max_key_length), '=' * int(value * scaling), value)
 
 def aes_decrypt_ecb(key, ciphertext):
+    """
+    Decrypts a ciphertext encrypted with AES.
+    """
     aes = AES(key)
     decrypted_blocks = [aes.decrypt_block(b) for b in divide(ciphertext, AES.BLOCK_SIZE)]
     padding_length = decrypted_blocks[-1][-1]
     decrypted_blocks[-1] = decrypted_blocks[-1][:-padding_length]
     return b''.join(decrypted_blocks)
+
+def detect_aes_ecb(ciphertext):
+    """
+    If ciphertext is an AES ciphertext, returns True if it was definitely
+    encrypted using ECB mode, or False if it can't be asserted. This is done
+    by looking for identical blocks.
+    """
+    blocks = divide(ciphertext, AES.BLOCK_SIZE)
+    return len(set(blocks)) != len(blocks)
 
 if __name__ == '__main__':
     import os
