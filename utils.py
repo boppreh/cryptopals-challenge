@@ -334,9 +334,19 @@ def detect_blocks(encrypt):
             return (block_size, n_blocks, n_blocks * block_size - i)
 
 def get_block(text, block_number, block_size=AES.BLOCK_SIZE):
+    """
+    Divides the given text into blocks and returns the i-th.
+    """
     return text[block_number*block_size:(block_number+1)*block_size]
 
 def break_aes_ecb_oracle(encrypt):
+    """
+    Given an encryption oracle
+        
+        encrypt(input) = aes_ecb_encrypt(key, input + secret)
+
+    using PKCS#7 padding, returns the value of `secret`.
+    """
     # We expect block_size to be 16 (AES.BLOCK_SIZE), but just to be sure.
     block_size, n_blocks, plaintext_size  = detect_blocks(encrypt)
     # This is expected, but also a hard requirement.
@@ -393,8 +403,8 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'
 
         encrypt(input) = aes_ecb_encrypt(key, prefix + input + suffix + tail)
 
-    with a known `tail` value (or just its length) and a desired `replacement`,
-    returns a tuple (padding, ciphertext) such that
+    using PKCS#7 padding and with a known `tail` value (or just its length) and
+    a desired `replacement`, returns a tuple (padding, ciphertext) such that
 
         ciphertext = aes_ecb_encrypt(key, prefix + padding + suffix + replacement)
     """
