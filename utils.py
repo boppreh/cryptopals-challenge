@@ -187,6 +187,6 @@ def aes_decrypt_ecb(key, ciphertext):
 if __name__ == '__main__':
     import os
     for name in sorted(os.listdir('.')):
-        if name.endswith('.py') and name != 'utils.py':
+        if name.endswith('.py') and name not in ('utils.py', 'aes.py'):
             print('Testing {}...'.format(name))
             os.system('python3 "{}"'.format(name))

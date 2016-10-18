@@ -1,5 +1,4 @@
 from utils import *
-from aes import AES
 
 key = b'YELLOW SUBMARINE'
 ciphertext = from_base64(read('7.txt'))
