@@ -197,7 +197,10 @@ def detect_aes_ecb(ciphertext):
     return len(set(blocks)) != len(blocks)
 
 def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
-    padding = AES.BLOCK_SIZE - (len(text) % AES.BLOCK_SIZE)
+    """
+    Pads a byte array according to PKCS#7, adding `n` times the byte `n`.
+    """
+    padding = block_size - (len(text) % block_size)
     return text + bytes([padding]) * padding
 
 if __name__ == '__main__':
