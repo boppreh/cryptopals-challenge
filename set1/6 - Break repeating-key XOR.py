@@ -9,12 +9,6 @@ ciphertext = from_base64(read('6.txt'))
 keysize_scoring = lambda k: hamming_distance(*divide(ciphertext, k)[:2]) / k
 print('Normalized hamming weight for each keysize:')
 graph({keysize: keysize_scoring(keysize) for keysize in range(2, 40)})
-candidates = []
-for keysize in sorted(range(2, 40), key=keysize_scoring):
-    print('Trying', keysize)
-    results = break_multi_byte_xor(ciphertext, keysize)
-    score, key, plaintext = results[0]
-    print('Preview:', int(score), key, plaintext[:50])
-    candidates.extend(results)
-for score, key, plaintext in sorted(candidates):
-    print(int(score), key, plaintext[:50])
+keysizes = sorted(range(2, 40), key=keysize_scoring)
+score, key, plaintext = sorted((break_multi_byte_xor(ciphertext, keysize) for keysize in keysizes), reverse=True)[0]
+print(score, key, plaintext.decode('utf-8'))

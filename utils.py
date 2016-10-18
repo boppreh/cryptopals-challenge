@@ -109,21 +109,17 @@ def break_single_byte_xor(ciphertext, measure=english_score):
     keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0xFF)]
     return sorted([(measure(p), k, p) for k, p in keys_and_plaintexts], reverse=True)
 
-def break_multi_byte_xor(ciphertext, keysize=None, limit_subkey=1):
+def break_multi_byte_xor(ciphertext, keysize):
     measure = lambda p: english_score(p)
     blocks = divide(ciphertext, keysize)
     if len(ciphertext) % keysize:
         blocks.pop()
     transposed = list(zip(*blocks))
-    best_by_subkey = [break_single_byte_xor(t, measure)[:limit_subkey] for t in transposed]
-    breaks = set()
-    for subparts in product(*best_by_subkey):
-        print('subparts!')
-        score = sum(s for s, k, p in subparts)
-        key = bytes(k for s, k, p in subparts)
-        transposed_plaintext = (p for s, k, p in subparts)
-        breaks.add((score, key, xor_decrypt(key, ciphertext)))
-    return sorted(breaks, reverse=True)
+    subparts = [break_single_byte_xor(t, measure)[0] for t in transposed]
+    score = sum(s for s, k, p in subparts)
+    key = bytes(k for s, k, p in subparts)
+    transposed_plaintext = (p for s, k, p in subparts)
+    return (score, key, xor_decrypt(key, ciphertext))
 
 def graph(data):
     """
