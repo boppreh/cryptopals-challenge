@@ -333,6 +333,8 @@ def detect_blocks(encrypt):
             n_blocks = int(n_blocks)
             return (block_size, n_blocks, n_blocks * block_size - i)
 
+    raise ValueError('Could not detect block information.')
+
 def get_block(text, block_number, block_size=AES.BLOCK_SIZE):
     """
     Divides the given text into blocks and returns the i-th.
@@ -368,6 +370,24 @@ def break_aes_ecb_oracle(encrypt):
 
     return unpad_pkcs7(plaintext_so_far)
 
+def detect_prefix_size_aes_ecb_oracle(encrypt):
+    """
+    Given an encryption oracle
+        
+        encrypt(input) = aes_ecb_encrypt(key, prefix + input + suffix)
+
+    returns the size of `prefix`.
+    """
+
+    marker = bytes(range(AES.BLOCK_SIZE)) * 2
+    for i in range(AES.BLOCK_SIZE):
+        blocks = divide(encrypt(b'A' * i + marker), AES.BLOCK_SIZE)
+        for index in range(len(blocks)-2):
+            if blocks[index+1] == blocks[index+2]:
+                return (index * AES.BLOCK_SIZE) + (AES.BLOCK_SIZE - i)
+
+    raise ValueError('Could not find prefix size.')
+
 def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'A'):
     """
     Given an oracle
@@ -378,6 +398,9 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'
     a desired `replacement`, returns a tuple (padding, ciphertext) such that
 
         ciphertext = aes_ecb_encrypt(key, prefix + padding + suffix + replacement)
+
+    Assumes the existing prefix, suffix and tail don't generate duplicate ECB
+    blocks.
     """
     if isinstance(tail, str):
         tail_length = len(tail)
@@ -396,7 +419,7 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'
     # Find the placement of our input by testing different left paddings and
     # seeing which one generates a ciphertext with repeated blocks, meaning
     # the input aligned with the start of a block.
-    # TODO: more elegant solution.
+    # TODO: more elegant solution that allows existing duplicated blocks.
     replications = 2
     for i in range(block_size):
         infected_ciphertext = encrypt(b'A' * i + replications * fake_plaintext_block)
