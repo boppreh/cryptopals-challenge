@@ -7,6 +7,7 @@ ciphertext = from_base64(read('6.txt'))
 #ciphertext = xor_encrypt(b'YELLOW SUBMARINE', read('6.py'))
 
 keysize_scoring = lambda k: hamming_distance(*divide(ciphertext, k)[:2]) / k
+print('Normalized hamming weight for each keysize:')
 graph({keysize: keysize_scoring(keysize) for keysize in range(2, 40)})
 candidates = []
 for keysize in sorted(range(2, 40), key=keysize_scoring):
