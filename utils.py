@@ -4,6 +4,7 @@ import re
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
 from aes import AES
+from collections import OrderedDict
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -179,7 +180,7 @@ def graph(data):
     for key, value in data.items():
         print(str(key).ljust(max_key_length), '=' * int(value * scaling), value)
 
-def aes_decrypt_ecb(key, ciphertext):
+def aes_ecb_decrypt(key, ciphertext):
     """
     Decrypts a ciphertext that was encrypted with AES in ECB mode.
     """
@@ -187,7 +188,7 @@ def aes_decrypt_ecb(key, ciphertext):
     decrypted_blocks = [aes.decrypt_block(b) for b in divide(ciphertext, AES.BLOCK_SIZE)]
     return unpad_pkcs7(b''.join(decrypted_blocks))
 
-def aes_encrypt_ecb(key, plaintext):
+def aes_ecb_encrypt(key, plaintext):
     """
     Encrypts a plaintext using AES in ECB mode.
     """
@@ -204,7 +205,7 @@ def detect_aes_ecb(ciphertext):
     blocks = divide(ciphertext, AES.BLOCK_SIZE)
     return len(set(blocks)) != len(blocks)
 
-def aes_decrypt_cbc(key, ciphertext, iv=None):
+def aes_cbc_decrypt(key, ciphertext, iv=None):
     """
     Decrypts a ciphertext that was encrypted with AES en CBC mode. If IV is not
     given take the first ciphertext block.
@@ -224,7 +225,7 @@ def aes_decrypt_cbc(key, ciphertext, iv=None):
 
     return unpad_pkcs7(b''.join(decrypted_blocks))
 
-def aes_encrypt_cbc(key, ciphertext, iv):
+def aes_cbc_encrypt(key, ciphertext, iv):
     """
     Encrypts a plaintext using AES in CBC mode.
     """
@@ -295,9 +296,9 @@ def encryption_oracle(text, key=None, mode=None, append=None, prepend=None):
     plaintext = prepend + text + append
     if mode == 'cbc':
         iv = random_bytes(AES.BLOCK_SIZE)
-        return aes_encrypt_cbc(key, plaintext, iv)
+        return aes_cbc_encrypt(key, plaintext, iv)
     else:
-        return aes_encrypt_ecb(key, plaintext)
+        return aes_ecb_encrypt(key, plaintext)
 
 def detect_mode(encrypt):
     """
@@ -357,7 +358,7 @@ def decode_k_v(text):
         >>> decode_k_v('foo=bar&baz=qux&zap=zazzle')
         {'foo': 'bar', 'baz': 'qux', 'zap': 'zazzle'}
     """
-    return dict(re.findall(r'([^=]+)=([^&]+)&?', text))
+    return OrderedDict(re.findall(b'([^=]+)=([^&]+)&?', text))
 
 def encode_k_v(obj):
     """
@@ -368,10 +369,16 @@ def encode_k_v(obj):
     """
     parts = []
     for key, value in obj.items():
-        if '&' in key or '&' in value or '=' in key or '=' in value:
+        if b'&' in key or b'&' in value or b'=' in key or b'=' in value:
             raise ValueError('Invalid character.')
-        parts.append('{}={}'.format(key, value))
-    return '&'.join(parts)
+        parts.append(key + b'=' + value)
+    return b'&'.join(parts)
+
+def profile_for(email):
+    """
+    Generates a dummy user profile with the given email.
+    """
+    return OrderedDict([(b'email', email), (b'uid', b'10'), (b'role', b'user')])
 
 if __name__ == '__main__':
     import os
