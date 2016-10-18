@@ -104,20 +104,43 @@ def break_single_byte_xor(ciphertext, measure=english_score):
     If ciphertext was encrypted with XOR using a single-byte key, brute forces
     the key and looks for the most English looking plaintext.
 
-    Returns a generator of (score, key, plaintext) triples.
+    Returns a generator of candidate (score, key, plaintext) triples.
     """
     keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0xFF)]
     return ((measure(p), k, p) for k, p in keys_and_plaintexts)
 
 def break_multi_byte_xor_keysize(ciphertext, expected_range=range(1, 65)):
+    """
+    Given a ciphertext encrypted with a mult-byte XOR, attempts to find the
+    keysize used by comparing the hamming distance between blocks.
+
+    Returns a generator of candidate (score, keysize) tuples.
+    """
     expected_range = expected_range or count()
     keysize_scoring = lambda k: hamming_distance(*divide(ciphertext, k)[:2]) / k
     return ((keysize_scoring(keysize), keysize) for keysize in expected_range)
 
-def break_multi_byte_xor(ciphertext, keysize=range(1, 65), measure=english_score):
+def break_multi_byte_xor(ciphertext, keysize=range(1, 65), measure=english_score, subkeys_cap=1):
+    """
+    Given a ciphertext encrypted with multi-byte XOR, attempts to find tkey
+    byte-by-byte and searchs for most English looking plaintext.
+
+    - `keysize`: the known number of key bytes, or a list containing candidate
+    keysizes.
+    - `measure`: function used for scoring candidates.
+    - `subkeys_cap`: limit the number of individual key bytes candidates. For
+    example, a `subkeys_cap` of 1 will yield only one candidate, with a key
+    formed by the bytes with best individual scores. A `subkeys_cap` of 5 will
+    return candidates with all possible combinations of the 5 best individual
+    key bytes. A `subkeys_cap` of 0 or None will return all possible candidates
+    with all possible key bytes, and is equivalent to a brute-force approach.
+
+    Returns a generator of candidate (score, key, plaintext) candidates.
+    """
     if not isinstance(keysize, int):
         for score, keysize_candidate in break_multi_byte_xor_keysize(ciphertext, keysize):
-            candidates = break_multi_byte_xor(ciphertext, keysize_candidate, measure=measure)
+            candidates = break_multi_byte_xor(ciphertext, keysize_candidate,
+                    measure=measure, subkeys_cap=subkeys_cap)
             for score, key, plaintext in candidates:
                 yield score, key, plaintext
         return
@@ -126,11 +149,18 @@ def break_multi_byte_xor(ciphertext, keysize=range(1, 65), measure=english_score
     if len(ciphertext) % keysize:
         blocks.pop()
     transposed = zip(*blocks)
-    subparts = [max(break_single_byte_xor(t, measure)) for t in transposed]
-    score = sum(s for s, k, p in subparts)
-    key = bytes(k for s, k, p in subparts)
-    transposed_plaintext = (p for s, k, p in subparts)
-    yield (score, key, xor_decrypt(key, ciphertext))
+    if subkeys_cap:
+        cap = lambda subkey_candidates: sorted(subkey_candidates, reverse=True)[:subkeys_cap]
+    else:
+        cap = lambda s: s
+
+    candidate_matrix = [cap(break_single_byte_xor(t, measure)) for t in transposed]
+
+    for subparts in product(*candidate_matrix):
+        score = sum(s for s, k, p in subparts)
+        key = bytes(k for s, k, p in subparts)
+        transposed_plaintext = (p for s, k, p in subparts)
+        yield (score, key, xor_decrypt(key, ciphertext))
 
 def graph(data):
     """

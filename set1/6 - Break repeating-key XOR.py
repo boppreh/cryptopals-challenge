@@ -7,4 +7,3 @@ ciphertext = from_base64(read('6.txt'))
 score, key, plaintext = max(break_multi_byte_xor(ciphertext, keysize=range(2, 41)))
 assert key == b'Terminator X: Bring the noise'
 assert plaintext[:20] == b"I'm back and I'm rin"
-print('passed')
