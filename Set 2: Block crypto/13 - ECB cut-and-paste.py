@@ -10,5 +10,9 @@ except ValueError:
     pass
 
 random_key = random_bytes(16)
-encrypt = lambda email: aes_ecb_encrypt(random_key, encode_k_v(profile_for(b'me')))
+encrypt = lambda email: aes_ecb_encrypt(random_key, encode_k_v(profile_for(email)))
 assert detect_mode(encrypt) == 'ecb'
+test = lambda ciphertext: decode_k_v(aes_ecb_decrypt(random_key, ciphertext))[b'role']
+assert test(encrypt(b'me')) == b'user'
+
+assert test(insert_aes_ecb_oracle(encrypt, test, b'admin',)) == b'admin'

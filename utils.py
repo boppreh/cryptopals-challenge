@@ -4,7 +4,7 @@ import re
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
 from aes import AES
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -277,11 +277,17 @@ def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     assert padding == bytes([padding_length]) * padding_length
     return padded[:-padding_length]
 
+def expected_padding_length(text, block_size=AES.BLOCK_SIZE):
+    """
+    Returns the number of bytes that the given text should be padded with.
+    """
+    return block_size - (len(text) % block_size)
+
 def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     """
     Pads a byte array according to PKCS#7, adding `n` times the byte `n`.
     """
-    padding_length = block_size - (len(text) % block_size)
+    padding_length = expected_padding_length(text, block_size)
     return text + bytes([padding_length]) * padding_length
 
 def encryption_oracle(text, key=None, mode=None, append=None, prepend=None):
@@ -315,7 +321,7 @@ def detect_mode(encrypt):
 def detect_blocks(encrypt):
     """
     Given an encryption oracle, encrypts messages of differentes sizes to
-    detect the block size and number of blocks.
+    detect (block_size, n_blocks, plaintext_size).
     """
     minimum_size = len(encrypt(b''))
     for i in count(1):
@@ -324,14 +330,15 @@ def detect_blocks(encrypt):
             block_size = size - minimum_size
             n_blocks = minimum_size / block_size
             assert int(n_blocks) == n_blocks
-            return (block_size, int(n_blocks))
+            n_blocks = int(n_blocks)
+            return (block_size, n_blocks, n_blocks * block_size - i)
 
 def get_block(text, block_number, block_size=AES.BLOCK_SIZE):
     return text[block_number*block_size:(block_number+1)*block_size]
 
 def break_aes_ecb_oracle(encrypt):
     # We expect block_size to be 16 (AES.BLOCK_SIZE), but just to be sure.
-    block_size, n_blocks  = detect_blocks(encrypt)
+    block_size, n_blocks, plaintext_size  = detect_blocks(encrypt)
     # This is expected, but also a hard requirement.
     assert detect_mode(encrypt) == 'ecb'
 
@@ -358,7 +365,7 @@ def decode_k_v(text):
         >>> decode_k_v('foo=bar&baz=qux&zap=zazzle')
         {'foo': 'bar', 'baz': 'qux', 'zap': 'zazzle'}
     """
-    return OrderedDict(re.findall(b'([^=]+)=([^&]+)&?', text))
+    return OrderedDict(re.findall(b'([^=]*)=([^&]*)&?', text))
 
 def encode_k_v(obj):
     """
@@ -379,6 +386,44 @@ def profile_for(email):
     Generates a dummy user profile with the given email.
     """
     return OrderedDict([(b'email', email), (b'uid', b'10'), (b'role', b'user')])
+
+def insert_aes_ecb_oracle(encrypt, test, replacement):
+    """
+    Returns a ciphertext such that
+
+        test(insert_aes_ecb_oracle(encrypt, test, replacement)) == replacement
+
+    - encrypt(value) = aes_ecb_encrypt(key, encode_structure(value))
+    - test(ciphertext) = decode_structure(aes_ecb_decrypt(key, ciphertext)).attribute
+    - replacement = string to replace the attribute
+
+    Note: the attribute must be encoded in the very end of the plaintext.
+    """
+    block_size, n_blocks, plaintext_size = detect_blocks(encrypt)
+    last_block_length = plaintext_size % block_size
+
+    empty_ciphertext = encrypt(b'')
+    # Value we want to replace.
+    default = test(empty_ciphertext)
+
+    bait = b'A' * (block_size - last_block_length + len(default))
+    # This makes our target spill over to a block by itself, which we discard.
+    good_blocks = divide(encrypt(bait), AES.BLOCK_SIZE)[:-1]
+
+    fake_plaintext_block = pad_pkcs7(replacement)
+    # Arbitrary value > 1. We will use it to find where in the ciphertext our
+    # injection ended up.
+    replications = 2
+    for i in range(block_size):
+        infected_ciphertext = encrypt(b'A' * i + replications * fake_plaintext_block)
+        infected_blocks = divide(infected_ciphertext, block_size)
+        fake_ciphertext_block, n = Counter(infected_blocks).most_common(1)[0]
+        if n == replications:
+            break
+
+    ciphertext = b''.join(good_blocks) + fake_ciphertext_block
+    assert test(ciphertext) == replacement
+    return ciphertext
 
 if __name__ == '__main__':
     import os
