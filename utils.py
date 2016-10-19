@@ -369,20 +369,23 @@ def break_aes_ecb_oracle(encrypt, prefix_length=None):
         for byte_number in range(block_size):
             bait = b'P' * prefix_padding + bait_text[byte_number + 1:]
             target_block = get_block(encrypt(bait), block_number, block_size)
-            make_candidate = lambda b: get_block(encrypt(bait + plaintext_so_far + b), 0, block_size)
+            victory = lambda byte: get_block(encrypt(bait + plaintext_so_far + byte), 0, block_size) == target_block
             try:
-                byte = next(byte for byte in all_bytes if make_candidate(byte) == target_block)
-                plaintext_so_far += byte
+                plaintext_so_far += next(filter(victory, all_bytes))
             except StopIteration:
-                # Either the Oracle is misbehaving, or we reached the end and
-                # padding is the only remaining data. Assume PKCS#7 and return.
-                assert plaintext_so_far[-1] == 1
+                # This exception only happens if the Oracle is misbehaving by
+                # not returning consistent results. The most likely reason is
+                # taht it's using PKCS#7, which changes the last bytes as
+                # we slide through them.
+                # We check this by making sure we are at the last block and we
+                # we last saw a 0x01 byte (a one byte padding).
+                assert block_number == n_blocks - 1 and plaintext_so_far[-1] == 1
                 return b''.join(plaintext_blocks) + plaintext_so_far[:-1]
 
         plaintext_blocks.append(plaintext_so_far)
         bait_text = plaintext_so_far
 
-    raise ValueError()
+    return b''.join(plaintext_blocks)
 
 def detect_prefix_length_aes_ecb_oracle(encrypt):
     """

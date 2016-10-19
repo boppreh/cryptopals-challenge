@@ -7,6 +7,7 @@ def log(a):
 key = random_bytes(16)
 
 for prefix_length in [0, 5, 16, 20, 32, 33]:
+    if prefix_length == 0: continue
     print('=============== Prefix Length {} ==================='.format(prefix_length))
     prefix = b'unknown prefix that can be used with different lengths'[:prefix_length]
     secret = b'super secret api token that spans multiples blocks'
