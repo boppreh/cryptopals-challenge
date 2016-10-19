@@ -473,6 +473,46 @@ def insert_aes_cbc_oracle(encrypt, prefix_length, data, remainig_char=b' '):
     ciphertext_blocks[n_blocks_prefix] = xor(ciphertext_blocks[n_blocks_prefix], corruption)
     return b''.join(ciphertext_blocks)
 
+def break_aes_cbc_padding_oracle(padding_oracle, ciphertext, unpad=True):
+    """
+    Given a padding oracle
+
+        padding_oracle(ciphertext) = has_correct_padding(aes_cbc_decrypt(key, ciphertext))
+
+    and a ciphertext, returns the corresponding plaintext.
+    """
+    *first_blocks, victim, last = divide(ciphertext, AES.BLOCK_SIZE)
+
+    ciphertext_prefix = b''.join(first_blocks)
+
+    bytes_found = []
+    for byte_position in range(1, AES.BLOCK_SIZE+1):
+
+        copy = list(victim)
+        for i, byte in enumerate(bytes_found, 1):
+            copy[i-byte_position] ^= byte ^ byte_position
+
+        for xored in range(1, 0x100):
+            copy[-byte_position] = victim[-byte_position] ^ xored
+            if padding_oracle(ciphertext_prefix + bytes(copy) + last):
+                byte_found = xored ^ byte_position
+                bytes_found.insert(0, byte_found)
+                break
+
+        if len(bytes_found) < byte_position:
+            bytes_found.insert(0, byte_position)
+
+    if first_blocks:
+        prefix = break_aes_cbc_padding_oracle(padding_oracle, ciphertext[:-AES.BLOCK_SIZE], unpad=False)
+    else:
+        prefix = b''
+
+    plaintext = prefix + bytes(bytes_found)
+    if unpad:
+        return unpad_pkcs7(plaintext)
+    else:
+        return plaintext
+
 def random_iv():
     return random_bytes(AES.BLOCK_SIZE)
 
