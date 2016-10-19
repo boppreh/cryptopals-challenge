@@ -453,13 +453,23 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'
     ciphertext = b''.join(good_blocks) + fake_ciphertext_block
     return bait, ciphertext
 
-def insert_aes_cbc_oracle(encrypt, prefix_length, data):
+def insert_aes_cbc_oracle(encrypt, prefix_length, data, remainig_char=b' '):
+    """
+    Given an encryption oracle
+        
+        encrypt(input) = aes_cbc_encrypt(key, prefix + escape(input) + suffix)
+
+    and the length of the prefix, returns a ciphertext that when decrypted
+    contains `data`. The ciphertext will contain two extra blocks, one of them
+    containing garbage and the other the given data plus repetitions of
+    `remaining char`.
+    """
     n_blocks_prefix = math.ceil(prefix_length / AES.BLOCK_SIZE)
     padding = b'P' * ((AES.BLOCK_SIZE - prefix_length) % AES.BLOCK_SIZE)
     block_to_corrupt = b'A' * AES.BLOCK_SIZE
     injected_block = b'\x00' * AES.BLOCK_SIZE
     ciphertext_blocks = divide(encrypt(padding + block_to_corrupt + injected_block), AES.BLOCK_SIZE)
-    corruption = data + b' ' * (AES.BLOCK_SIZE - len(data))
+    corruption = data + remainig_char * (AES.BLOCK_SIZE - len(data))
     ciphertext_blocks[n_blocks_prefix] = xor(ciphertext_blocks[n_blocks_prefix], corruption)
     return b''.join(ciphertext_blocks)
 
