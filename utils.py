@@ -110,7 +110,7 @@ def break_single_byte_xor(ciphertext, measure=english_score):
 
     Returns a generator of candidate (score, key, plaintext) triples.
     """
-    keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0xFF)]
+    keys_and_plaintexts = [(k, xor_decrypt(k, ciphertext)) for k in range(0x100)]
     return ((measure(p), k, p) for k, p in keys_and_plaintexts)
 
 def break_multi_byte_xor_keysize(ciphertext, expected_range=range(1, 65)):
@@ -331,7 +331,7 @@ def detect_blocks(encrypt):
             n_blocks = minimum_size / block_size
             assert int(n_blocks) == n_blocks
             n_blocks = int(n_blocks)
-            return (block_size, n_blocks, n_blocks * block_size - i)
+            return (block_size, n_blocks, n_blocks * block_size - i + 1)
 
     raise ValueError('Could not detect block information.')
 
@@ -351,7 +351,6 @@ def break_aes_ecb_oracle(encrypt, prefix_length=None):
     """
     # We expect block_size to be 16 (AES.BLOCK_SIZE), but just to be sure.
     block_size, n_blocks, plaintext_size  = detect_blocks(encrypt)
-    assert detect_mode(encrypt) == 'ecb'
 
     if prefix_length is None:
         prefix_length = detect_prefix_length_aes_ecb_oracle(encrypt)
@@ -362,14 +361,17 @@ def break_aes_ecb_oracle(encrypt, prefix_length=None):
     start_block = math.ceil((prefix_length + prefix_padding) / AES.BLOCK_SIZE)
     # Sort bytes by presence in ASCII alphabet, so we try more likely bytes
     # first.
-    all_bytes = sorted((bytes([b]) for b in range(0xFF)), key=is_ascii_text, reverse=True)
+    all_bytes = sorted((bytes([b]) for b in range(0x100)), key=is_ascii_text, reverse=True)
     bait_text = b'B' * block_size
-    for block_number in range(start_block, n_blocks):
+    for block_number in count(start_block):
         plaintext_so_far = b''
         for byte_number in range(block_size):
             bait = b'P' * prefix_padding + bait_text[byte_number + 1:]
             target_block = get_block(encrypt(bait), block_number, block_size)
-            victory = lambda byte: get_block(encrypt(bait + plaintext_so_far + byte), 0, block_size) == target_block
+            def victory(byte):
+                injection = bait + plaintext_so_far + byte
+                block = get_block(encrypt(injection), start_block, block_size)
+                return block == target_block
             try:
                 plaintext_so_far += next(filter(victory, all_bytes))
             except StopIteration:
@@ -379,8 +381,10 @@ def break_aes_ecb_oracle(encrypt, prefix_length=None):
                 # we slide through them.
                 # We check this by making sure we are at the last block and we
                 # we last saw a 0x01 byte (a one byte padding).
-                assert block_number == n_blocks - 1 and plaintext_so_far[-1] == 1
-                return b''.join(plaintext_blocks) + plaintext_so_far[:-1]
+                assert plaintext_so_far[-1] == 1
+                full_plaintext = b''.join(plaintext_blocks) + plaintext_so_far[:-1]
+                assert len(full_plaintext) == plaintext_size - prefix_length
+                return full_plaintext
 
         plaintext_blocks.append(plaintext_so_far)
         bait_text = plaintext_so_far
