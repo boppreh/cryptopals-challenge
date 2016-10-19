@@ -281,7 +281,7 @@ def expected_padding_length(text, block_size=AES.BLOCK_SIZE):
     """
     Returns the number of bytes that the given text should be padded with.
     """
-    return block_size - (len(text) % block_size)
+    return (-len(text)) % block_size
 
 def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     """
@@ -341,36 +341,50 @@ def get_block(text, block_number, block_size=AES.BLOCK_SIZE):
     """
     return text[block_number*block_size:(block_number+1)*block_size]
 
-def break_aes_ecb_oracle(encrypt):
+def break_aes_ecb_oracle(encrypt, prefix_length=None):
     """
     Given an encryption oracle
         
-        encrypt(input) = aes_ecb_encrypt(key, input + secret)
+        encrypt(input) = aes_ecb_encrypt(key, prefix + input + secret)
 
     using PKCS#7 padding, returns the value of `secret`.
     """
     # We expect block_size to be 16 (AES.BLOCK_SIZE), but just to be sure.
     block_size, n_blocks, plaintext_size  = detect_blocks(encrypt)
-    # This is expected, but also a hard requirement.
     assert detect_mode(encrypt) == 'ecb'
 
-    plaintext_so_far = b''
+    if prefix_length is None:
+        prefix_length = detect_prefix_length_aes_ecb_oracle(encrypt)
 
-    for block_number in range(n_blocks):
-        for i in range(1, block_size+1):
-            bait = b'A' * (block_size - i)
-            block = get_block(encrypt(bait), block_number, block_size)
-            for b in range(0xFF):
-                char = bytes([b])
-                candidate = bait + plaintext_so_far + char
-                candidate_block = get_block(encrypt(candidate), block_number, block_size)
-                if candidate_block == block:
-                    plaintext_so_far += char
-                    break
+    plaintext_blocks = []
 
-    return unpad_pkcs7(plaintext_so_far)
+    prefix_padding = (-prefix_length) % AES.BLOCK_SIZE
+    start_block = math.ceil((prefix_length + prefix_padding) / AES.BLOCK_SIZE)
+    # Sort bytes by presence in ASCII alphabet, so we try more likely bytes
+    # first.
+    all_bytes = sorted((bytes([b]) for b in range(0xFF)), key=is_ascii_text, reverse=True)
+    bait_text = b'B' * block_size
+    for block_number in range(start_block, n_blocks):
+        plaintext_so_far = b''
+        for byte_number in range(block_size):
+            bait = b'P' * prefix_padding + bait_text[byte_number + 1:]
+            target_block = get_block(encrypt(bait), block_number, block_size)
+            make_candidate = lambda b: get_block(encrypt(bait + plaintext_so_far + b), 0, block_size)
+            try:
+                byte = next(byte for byte in all_bytes if make_candidate(byte) == target_block)
+                plaintext_so_far += byte
+            except StopIteration:
+                # Either the Oracle is misbehaving, or we reached the end and
+                # padding is the only remaining data. Assume PKCS#7 and return.
+                assert plaintext_so_far[-1] == 1
+                return b''.join(plaintext_blocks) + plaintext_so_far[:-1]
 
-def detect_prefix_size_aes_ecb_oracle(encrypt):
+        plaintext_blocks.append(plaintext_so_far)
+        bait_text = plaintext_so_far
+
+    raise ValueError()
+
+def detect_prefix_length_aes_ecb_oracle(encrypt):
     """
     Given an encryption oracle
         
@@ -378,13 +392,12 @@ def detect_prefix_size_aes_ecb_oracle(encrypt):
 
     returns the size of `prefix`.
     """
-
     marker = bytes(range(AES.BLOCK_SIZE)) * 2
     for i in range(AES.BLOCK_SIZE):
         blocks = divide(encrypt(b'A' * i + marker), AES.BLOCK_SIZE)
-        for index in range(len(blocks)-2):
-            if blocks[index+1] == blocks[index+2]:
-                return (index * AES.BLOCK_SIZE) + (AES.BLOCK_SIZE - i)
+        for index in range(len(blocks)-1):
+            if blocks[index] == blocks[index+1]:
+                return index * AES.BLOCK_SIZE - i
 
     raise ValueError('Could not find prefix size.')
 
