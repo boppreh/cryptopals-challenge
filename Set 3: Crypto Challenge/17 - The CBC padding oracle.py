@@ -18,10 +18,6 @@ strings = [from_base64(s) for s in b"""MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1b
 
 key = random_aes_key()
 for string in strings:
-    def encrypt():
-        iv = random_iv()
-        return iv + aes_cbc_encrypt(key, string, iv)
-
     def padding_oracle(ciphertext):
         try:
             aes_cbc_decrypt(key, ciphertext)
@@ -29,4 +25,6 @@ for string in strings:
         except PaddingError:
             return False
 
-    assert break_aes_cbc_padding_oracle(padding_oracle, encrypt()) == string
+    iv = random_iv()
+    ciphertext = iv + aes_cbc_encrypt(key, string, iv)
+    assert break_aes_cbc_padding_oracle(padding_oracle, ciphertext) == string

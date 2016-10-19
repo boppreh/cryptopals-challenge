@@ -543,6 +543,9 @@ def random_iv():
 def random_aes_key():
     return random_bytes(16)
 
+def random_ctr_nonce():
+    return random_bytes(8)
+
 if __name__ == '__main__':
     import os
     for name in sorted(os.listdir('.')):
