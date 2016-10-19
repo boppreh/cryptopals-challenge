@@ -221,9 +221,9 @@ def aes_cbc_decrypt(key, ciphertext, iv=None):
     decrypted_blocks = []
     previous = iv
     for block in encrypted_blocks:
-        text = xor(previous, aes.decrypt_block(block))
+        data = xor(previous, aes.decrypt_block(block))
         previous = block
-        decrypted_blocks.append(text)
+        decrypted_blocks.append(data)
 
     return unpad_pkcs7(b''.join(decrypted_blocks))
 
@@ -337,11 +337,11 @@ def detect_blocks(encrypt):
 
     raise ValueError('Could not detect block information.')
 
-def get_block(text, block_number, block_size=AES.BLOCK_SIZE):
+def get_block(data, block_number, block_size=AES.BLOCK_SIZE):
     """
-    Divides the given text into blocks and returns the i-th.
+    Divides the given data into blocks and returns the i-th.
     """
-    return text[block_number*block_size:(block_number+1)*block_size]
+    return data[block_number*block_size:(block_number+1)*block_size]
 
 def break_aes_ecb_oracle(encrypt, prefix_length=None):
     """
@@ -452,6 +452,16 @@ def replace_tail_aes_ecb_oracle(encrypt, tail, replacement, padding_character=b'
 
     ciphertext = b''.join(good_blocks) + fake_ciphertext_block
     return bait, ciphertext
+
+def insert_aes_cbc_oracle(encrypt, prefix_length, data):
+    n_blocks_prefix = math.ceil(prefix_length / AES.BLOCK_SIZE)
+    padding = b'P' * ((AES.BLOCK_SIZE - prefix_length) % AES.BLOCK_SIZE)
+    block_to_corrupt = b'A' * AES.BLOCK_SIZE
+    injected_block = b'\x00' * AES.BLOCK_SIZE
+    ciphertext_blocks = divide(encrypt(padding + block_to_corrupt + injected_block), AES.BLOCK_SIZE)
+    corruption = data + b' ' * (AES.BLOCK_SIZE - len(data))
+    ciphertext_blocks[n_blocks_prefix] = xor(ciphertext_blocks[n_blocks_prefix], corruption)
+    return b''.join(ciphertext_blocks)
 
 if __name__ == '__main__':
     import os
