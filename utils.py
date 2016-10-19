@@ -240,7 +240,7 @@ def aes_cbc_encrypt(key, ciphertext, iv):
         encrypted_blocks.append(encrypted_block)
         previous = encrypted_block
 
-    return pad_pkcs7(b''.join(encrypted_blocks))
+    return b''.join(encrypted_blocks)
 
 def random_bool():
     """
@@ -275,7 +275,6 @@ def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     """
     padding_length = padded[-1]
     padding = padded[-padding_length:]
-    print(padded, padding_length, padding)
     if not 0 < padding_length <= block_size or padding != bytes([padding_length]) * padding_length:
         raise PaddingError()
     return padded[:-padding_length]
