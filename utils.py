@@ -242,6 +242,30 @@ def aes_cbc_encrypt(key, ciphertext, iv):
 
     return b''.join(encrypted_blocks)
 
+def aes_ctr_stream(key, nonce, endianness='little'):
+    """
+    Returns a generator of single-bytes suitable to encrypt or decrypt
+    plaintexts.
+    """
+    aes = AES(key)
+    nonce_int = int.from_bytes(nonce, endianness)
+    block_pad = b'\x00' * (AES.BLOCK_SIZE - len(nonce))
+    for i in count():
+        text = block_pad + nonce_int.to_bytes(len(nonce), endianness)
+        for byte in aes.encrypt_block(text):
+            yield byte
+        nonce_int += 1
+
+def aes_ctr_encrypt(key, data, nonce, endianess='little'):
+    """
+    Encrypts or decrypts a text using AES in CTR mode.
+    """
+    ciphertext = []
+    for plaintext_byte, stream_byte in zip(data, aes_ctr_stream(key, nonce, endianess)):
+        ciphertext.append(plaintext_byte ^ stream_byte)
+    return bytes(ciphertext)
+aes_ctr_decrypt = aes_ctr_encrypt
+
 def random_bool():
     """
     Returns a random boolean value.
