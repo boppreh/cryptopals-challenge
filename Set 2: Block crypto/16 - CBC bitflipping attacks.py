@@ -13,7 +13,7 @@ assert encode(b'mcs') == b"comment1=cooking%20MCs;userdata=mcs;comment2=%20like%
 assert encode(b';admin=true;') == b"comment1=cooking%20MCs;userdata=.admin.true.;comment2=%20like%20a%20pound%20of%20bacon"
 
 key = random_bytes(16)
-iv = random_bytes(16)
+iv = random_bytes(AES.BLOCK_SIZE)
 
 encrypt = lambda input: aes_cbc_encrypt(key, encode(input), iv=iv)
 test = lambda ciphertext: b';admin=true;' in aes_cbc_decrypt(key, ciphertext, iv=iv)

@@ -240,7 +240,7 @@ def aes_cbc_encrypt(key, ciphertext, iv):
         encrypted_blocks.append(encrypted_block)
         previous = encrypted_block
 
-    return b''.join(encrypted_blocks)
+    return pad_pkcs7(b''.join(encrypted_blocks))
 
 def random_bool():
     """
@@ -275,6 +275,7 @@ def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     """
     padding_length = padded[-1]
     padding = padded[-padding_length:]
+    print(padded, padding_length, padding)
     if not 0 < padding_length <= block_size or padding != bytes([padding_length]) * padding_length:
         raise PaddingError()
     return padded[:-padding_length]
@@ -283,7 +284,7 @@ def expected_padding_length(text, block_size=AES.BLOCK_SIZE):
     """
     Returns the number of bytes that the given text should be padded with.
     """
-    return (-len(text)) % block_size
+    return (-len(text)) % block_size or block_size
 
 def pad_pkcs7(text, block_size=AES.BLOCK_SIZE):
     """
@@ -472,6 +473,12 @@ def insert_aes_cbc_oracle(encrypt, prefix_length, data, remainig_char=b' '):
     corruption = data + remainig_char * (AES.BLOCK_SIZE - len(data))
     ciphertext_blocks[n_blocks_prefix] = xor(ciphertext_blocks[n_blocks_prefix], corruption)
     return b''.join(ciphertext_blocks)
+
+def random_iv():
+    return random_bytes(AES.BLOCK_SIZE)
+
+def random_aes_key():
+    return random_bytes(16)
 
 if __name__ == '__main__':
     import os
