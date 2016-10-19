@@ -9,6 +9,8 @@ from collections import Counter
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
 
+class PaddingError(Exception): pass
+
 def get_chars_per_byte(base_chars):
     """
     Calculates how many characters are required to represent a byte
@@ -272,9 +274,9 @@ def unpad_pkcs7(padded, block_size=AES.BLOCK_SIZE):
     last byte.
     """
     padding_length = padded[-1]
-    assert 0 < padding_length <= block_size
     padding = padded[-padding_length:]
-    assert padding == bytes([padding_length]) * padding_length
+    if not 0 < padding_length <= block_size or padding != bytes([padding_length]) * padding_length:
+        raise PaddingError()
     return padded[:-padding_length]
 
 def expected_padding_length(text, block_size=AES.BLOCK_SIZE):
