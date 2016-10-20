@@ -555,6 +555,12 @@ def break_aes_ctr_repeated_nonce(ciphertexts, measure=english_score):
 
     return [xor(stream_guess, ciphertext, truncate=True) for ciphertext in ciphertexts]
 
+def break_twister_time(outputs, max_time):
+    for seed in range(max_time, 0, -1):
+        twister = Twister(seed)
+        if all(output == actual for actual, output in zip(twister.stream(), outputs)):
+            return seed
+
 def random_iv():
     return random_bytes(AES.BLOCK_SIZE)
 
