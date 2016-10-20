@@ -5,6 +5,7 @@ from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product, islice
 from aes import AES
 from collections import Counter, OrderedDict
+from twister import Twister
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
