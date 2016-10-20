@@ -578,18 +578,9 @@ def untemper_twister(y):
     y ^= ((y ^ c) << t) & c
 
     copy = y
-    y_ = y & ~(d << (1*s))
-
-    y ^= (y_ << s) & b
-    y_ = y & ~(d << (2*s))
-
-    y = copy ^ ((y_ << s) & b)
-    y_ = y & ~(d << (3*s))
-
-    y = copy ^ ((y_ << s) & b)
-    y_ = y & ~(d << (4*s))
-
-    y = copy ^ ((y_ << s) & b)
+    for i in range(1, 5):
+        y_ = y & ~(d << (i*s))
+        y = copy ^ ((y_ << s) & b)
 
     copy = y
     y ^= y >> u
