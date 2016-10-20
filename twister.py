@@ -50,6 +50,12 @@ class Twister:
             self.state[i] = self.state[(i + m) % n] ^ xA
         self.index = 0
 
-    def stream(self):
+    def stream32(self):
         while True:
             yield self.next()
+
+    def stream8(self):
+        while True:
+            _32 = self.next()
+            for i in range(0, 32, 8):
+                yield (_32 >> i) & 0xFF

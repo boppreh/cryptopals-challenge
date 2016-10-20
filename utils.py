@@ -244,6 +244,23 @@ def aes_cbc_encrypt(key, ciphertext, iv):
 
     return b''.join(encrypted_blocks)
 
+def twister_encrypt(seed, data):
+    """
+    "Encrypts" data with a MersenneTwister generator seeded with the given
+    value. Please don't pretend this is cryptography.
+    """
+    return stream_encrypt(Twister(seed).stream8(), data)
+twister_decrypt = twister_encrypt
+
+def stream_encrypt(stream, data):
+    """
+    Helper function that XORs data with a stream.
+    """
+    ciphertext = []
+    for plaintext_byte, stream_byte in zip(data, stream):
+        ciphertext.append(plaintext_byte ^ stream_byte)
+    return bytes(ciphertext)
+
 def aes_ctr_stream(key, nonce, endianness='little'):
     """
     Returns a generator of single-bytes suitable to encrypt or decrypt
@@ -262,10 +279,7 @@ def aes_ctr_encrypt(key, data, nonce, endianess='little'):
     """
     Encrypts or decrypts a text using AES in CTR mode.
     """
-    ciphertext = []
-    for plaintext_byte, stream_byte in zip(data, aes_ctr_stream(key, nonce, endianess)):
-        ciphertext.append(plaintext_byte ^ stream_byte)
-    return bytes(ciphertext)
+    return stream_encrypt(aes_ctr_stream(key, nonce, endianess), data)
 aes_ctr_decrypt = aes_ctr_encrypt
 
 def random_bool():
