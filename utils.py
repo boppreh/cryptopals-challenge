@@ -537,6 +537,23 @@ def break_aes_cbc_padding_oracle(padding_oracle, ciphertext, unpad=True):
     else:
         return plaintext
 
+def break_aes_ctr_repeated_nonce(ciphertexts, measure=english_score):
+    """
+    Given a list of ciphertexts that were encrypted with AES CTR mode with the
+    same nonce, returns the guessed plaintexts. Accuracy increases with number
+    of ciphertexts provided.
+    """
+    max_len = max(map(len, ciphertexts))
+
+    transposed = [[c[i] for c in ciphertexts if len(c) > i] for i in range(max_len)]
+    stream_guess = b''
+    for cipher_letters in transposed:
+        guesses = [(bytes([i]), bytes(c ^ i for c in cipher_letters)) for i in range(0x100)]
+        key_byte, score = max(guesses, key=lambda p: english_score(p[1]))
+        stream_guess += key_byte
+
+    return [xor(stream_guess, ciphertext, truncate=True) for ciphertext in ciphertexts]
+
 def random_iv():
     return random_bytes(AES.BLOCK_SIZE)
 

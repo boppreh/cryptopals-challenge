@@ -41,22 +41,11 @@ SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=
 VHJhbnNmb3JtZWQgdXR0ZXJseTo=
 QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=""".split()]
 
-# Yay, determinism.
-class OrderedCounter(Counter, OrderedDict): pass
-
 key = random_aes_key()
 nonce = b'\x00' * 8
 
 ciphertexts = [aes_ctr_encrypt(key, string, nonce) for string in strings]
-max_len = max(map(len, ciphertexts))
-stream_real = bytes(islice(aes_ctr_stream(key, nonce), max_len))
 
-transposed = [[c[i] for c in ciphertexts if len(c) > i] for i in range(max_len)]
-stream_guess = b''
-for cipher_letters in transposed:
-    guesses = [(bytes([i]), bytes(c ^ i for c in cipher_letters)) for i in range(0x100)]
-    key_byte, score = max(guesses, key=lambda p: english_score(p[1]))
-    stream_guess += key_byte
+guesses = break_aes_ctr_repeated_nonce(ciphertexts)
 
-for ciphertext in ciphertexts:
-    print(xor(stream_guess, ciphertext, truncate=True))
+assert sum(guess.lower() == actual.lower() for guess, actual in zip(guesses, strings)) > 25
