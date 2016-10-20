@@ -2,9 +2,9 @@ import math
 import os
 import re
 from base64 import b64encode, b64decode
-from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product
+from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product, islice
 from aes import AES
-from collections import Counter
+from collections import Counter, OrderedDict
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -65,9 +65,9 @@ to_bin = lambda bytes: encode_base(bytes, bin_chars)
 from_base64 = lambda string: b64decode(string)
 to_base64 = lambda bytes: b64encode(bytes).decode('ascii')
 
-def xor(a, b):
+def xor(a, b, truncate=False):
     """ XORs two equal length byte arrays. """
-    assert len(a) == len(b)
+    assert len(a) == len(b) or truncate
     return bytes(x^y for x, y in zip(a, b))
 
 def xor_encrypt(key, a):
@@ -86,12 +86,12 @@ def is_letter(byte):
     """ Returns True if byte is an ASCII letter between A and Z. """
     return 'a' <= chr(byte).lower() <= 'z'
 
-ENGLISH_FREQUENCY = 'zqxjkvbpygfwmucldrhsnioate'
+ASCII_ENGLISH_FREQUENCY = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 155603, 0, 0, 155603, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1639895, 3205, 21729, 105, 655, 35, 357, 11297, 1953, 1953, 3899, 754, 113215, 50967, 74191, 2546, 4683, 6818, 3304, 1893, 1469, 1492, 1036, 1087, 1713, 1330, 3752, 9933, 0, 0, 0, 3450, 70, 18931, 9268, 10527, 8056, 17967, 7419, 8954, 11716, 35987, 1776, 1764, 10297, 8994, 13095, 12765, 12247, 494, 11398, 18772, 25169, 4825, 2285, 8507, 577, 4694, 213, 976, 0, 976, 0, 6430, 0, 453655, 83647, 153957, 239955, 731796, 139438, 119292, 324830, 382031, 7206, 43450, 235686, 140056, 406180, 443262, 105787, 5799, 356907, 361152, 520577, 167610, 56153, 123272, 9634, 106489, 3711, 0, 17720, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 4, 0, 0, 0, 5, 0, 22, 62, 1, 10, 0, 0, 1, 0, 0, 131, 0, 5, 2, 0, 4, 0, 0, 1, 0, 1, 2, 0, 0, 0]
 
 def english_score(bytes, skip_non_ascii=True):
     """ Returns a number representing the English-ness of a byte array. """
     if skip_non_ascii and not is_ascii_text(bytes): return 0
-    return sum(ENGLISH_FREQUENCY.index(chr(b).lower()) if is_letter(b) else 0 for b in bytes) / len(bytes)
+    return sum(ASCII_ENGLISH_FREQUENCY[b] for b in bytes) / len(bytes)
 
 def read(path):
     """ Return the binary contents of a file. """
