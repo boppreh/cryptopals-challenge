@@ -1,5 +1,7 @@
 def truncate(i):
     return i & 0xFFFFFFFF
+def print_word(i):
+    print('{0:032b}'.format(i))
 
 # MT19937.
 w, n, m, r = 32, 624, 397, 31
@@ -26,13 +28,13 @@ class Twister:
             self.twist()
 
         y = self.state[self.index]
-        y = y ^ ((y >> u) & d)
-        y = y ^ ((y << s) & b)
-        y = y ^ ((y << t) & c)
-        y = y ^ (y >> l)
+        y ^= y >> u
+        y ^= (y << s) & b
+        y ^= (y << t) & c
+        y ^= y >> l
 
         self.index += 1
-        return truncate(y)
+        return y
 
     def twist(self):
         for i in range(n):

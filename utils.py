@@ -564,6 +564,40 @@ def break_twister_time(first_output, max_time=None):
     max_time = max_time or int(time.time())
     return next(seed for seed in range(max_time, 0, -1) if Twister(seed).next() == first_output)
 
+def untemper_twister(y):
+    """
+    Given an output from a MersenneTwister, returns the corresponding
+    internal state.
+    """
+    u, d = 11, 0xFFFFFFFF
+    s, b = 7, 0x9D2C5680
+    t, c = 15, 0xEFC60000
+    l = 18
+
+    y ^= y >> l
+    y ^= ((y ^ c) << t) & c
+
+    copy = y
+    y_ = y & ~(d << (1*s))
+
+    y ^= (y_ << s) & b
+    y_ = y & ~(d << (2*s))
+
+    y = copy ^ ((y_ << s) & b)
+    y_ = y & ~(d << (3*s))
+
+    y = copy ^ ((y_ << s) & b)
+    y_ = y & ~(d << (4*s))
+
+    y = copy ^ ((y_ << s) & b)
+
+    copy = y
+    y ^= y >> u
+    return copy ^ (y >> u)
+
+def print_word(i):
+    print('{0:032b}'.format(i))
+
 def random_iv():
     return random_bytes(AES.BLOCK_SIZE)
 
