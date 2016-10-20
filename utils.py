@@ -1,4 +1,5 @@
 import math
+import time
 import os
 import re
 from base64 import b64encode, b64decode
@@ -555,11 +556,13 @@ def break_aes_ctr_repeated_nonce(ciphertexts, measure=english_score):
 
     return [xor(stream_guess, ciphertext, truncate=True) for ciphertext in ciphertexts]
 
-def break_twister_time(outputs, max_time):
-    for seed in range(max_time, 0, -1):
-        twister = Twister(seed)
-        if all(output == actual for actual, output in zip(twister.stream(), outputs)):
-            return seed
+def break_twister_time(first_output, max_time=None):
+    """
+    Given the first output of a MersenneTwister seeded with a timestamp,
+    brute-forces and returns the seed.
+    """
+    max_time = max_time or int(time.time())
+    return next(seed for seed in range(max_time, 0, -1) if Twister(seed).next() == first_output)
 
 def random_iv():
     return random_bytes(AES.BLOCK_SIZE)
