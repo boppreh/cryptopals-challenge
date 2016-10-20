@@ -17,9 +17,14 @@ lower_mask = (1 << r) - 1
 
 class Twister:
     def __init__(self, seed):
-        self.state = [0] * n
+        if isinstance(seed, int):
+            self.state = [0] * n
+            self.state[0] = seed
+        else:
+            self.state = seed
+
         self.index = n
-        self.state[0] = seed
+
         for i in range(1, n):
             self.state[i] = truncate(f * (self.state[i-1] ^ (self.state[i-1] >> (w-2))) + i)
 
