@@ -630,6 +630,6 @@ def random_ctr_nonce():
 if __name__ == '__main__':
     import os
     for name in sorted(os.listdir('.')):
-        if name.endswith('.py') and name not in ('utils.py', 'aes.py'):
+        if name.endswith('.py') and name[0].isdigit():
             print('Testing {}...'.format(name))
             os.system('python3 "{}"'.format(name))
