@@ -1,7 +1,7 @@
 from utils import *
 from time import sleep, time
 
-eed = int(time())
+seed = int(time())
 twister = Twister(seed)
 sleep(random_number(1, 10))
 output = twister.next()
