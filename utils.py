@@ -373,7 +373,7 @@ def detect_blocks(encrypt):
             n_blocks = minimum_size / block_size
             assert int(n_blocks) == n_blocks
             n_blocks = int(n_blocks)
-            return (block_size, n_blocks, n_blocks * block_size - i + 1)
+            return (block_size, n_blocks, n_blocks * block_size - i)
 
     raise ValueError('Could not detect block information.')
 
@@ -419,7 +419,7 @@ def break_aes_ecb_oracle(encrypt, prefix_length=None):
             except StopIteration:
                 # This exception only happens if the Oracle is misbehaving by
                 # not returning consistent results. The most likely reason is
-                # taht it's using PKCS#7, which changes the last bytes as
+                # that it's using PKCS#7, which changes the last bytes as
                 # we slide through them.
                 # We check this by making sure we are at the last block and we
                 # we last saw a 0x01 byte (a one byte padding).

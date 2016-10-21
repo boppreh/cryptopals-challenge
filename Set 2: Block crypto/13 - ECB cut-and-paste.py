@@ -42,5 +42,6 @@ except ValueError:
 random_key = random_bytes(16)
 encrypt = lambda email: aes_ecb_encrypt(random_key, encode_k_v(profile_for(email)))
 assert detect_mode(encrypt) == 'ecb'
+assert detect_blocks(encrypt) == (16, 2, 23)
 email, ciphertext = replace_tail_aes_ecb_oracle(encrypt, len('user'), b'admin',)
 assert decode_k_v(aes_ecb_decrypt(random_key, ciphertext))[b'role'] == b'admin'
