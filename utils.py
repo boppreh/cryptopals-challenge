@@ -575,8 +575,13 @@ def break_twister_time(first_output, max_time=None):
     Given the first output of a MersenneTwister seeded with a timestamp,
     brute-forces and returns the seed.
     """
-    max_time = max_time or int(time.time())
-    return next(seed for seed in range(max_time, 0, -1) if Twister(seed).next() == first_output)
+    max_time = max_time or int(time.time()) + 100
+    if isinstance(first_output, int):
+        test = lambda seed: Twister(seed).next() == first_output
+    else:
+        blank = b'\x00' * len(first_output)
+        test = lambda seed: twister_encrypt(seed, blank) == first_output
+    return next(seed for seed in range(max_time, 0, -1) if test(seed))
 
 def untemper_twister(y):
     """
@@ -599,6 +604,16 @@ def untemper_twister(y):
     copy = y
     y ^= y >> u
     return copy ^ (y >> u)
+
+def break_twister(ciphertext, known_substring, max_key=2**32):
+    """
+    Given a ciphertext encrypted by a MersenneTwister "encryption" stream and
+    a known substring, finds the generator seed.
+    """
+    for key in range(max_key):
+        if known_substring in twister_decrypt(key, ciphertext):
+            return key
+    raise ValueError('Key not found.')
 
 def print_word(i):
     print('{0:032b}'.format(i))
