@@ -638,6 +638,20 @@ def break_stream_edit_oracle(edit_oracle, ciphertext=None):
     stream = edit_oracle(0, len(ciphertext) * b'\x00')
     return xor(ciphertext, stream)
 
+def insert_aes_ctr_oracle(encrypt, prefix_length, data, padding=b'A'):
+    """
+    Given an encryption oracle
+
+        encrypt(text) = aes_ctr_encrypt(key, prefix + escape(text) + suffix, nonce)
+
+    and the length of the prefix, returns a ciphertext that contains `data`.
+    """
+    zeroed_ciphertext_bytes = list(encrypt(padding * len(data)))
+    for i, data_byte in enumerate(data, prefix_length):
+        zeroed_ciphertext_bytes[i] ^= ord(padding) ^ data_byte
+    return bytes(zeroed_ciphertext_bytes)
+    
+
 def print_word(i):
     print('{0:032b}'.format(i))
 
