@@ -7,6 +7,7 @@ from itertools import chain, cycle, repeat, count, combinations, combinations_wi
 from aes import AES
 from collections import Counter, OrderedDict
 from twister import Twister
+from hashes import sha1, md5
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -108,6 +109,10 @@ def hamming_distance(*lists):
     """
     pairs = [(a, b) for a, b in zip(lists, lists[1:])]
     return sum(sum(to_bin([x^y]).count('1') for x, y in zip(a, b)) for a, b in pairs) / len(pairs)
+
+def sha1mac(key, message):
+    """ Computes the SHA1 MAC for the given key and message. """
+    return sha1(key + message)
 
 def break_single_byte_xor(ciphertext, measure=english_score):
     """
