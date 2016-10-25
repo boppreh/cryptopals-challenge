@@ -11,6 +11,8 @@ from twister import Twister
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
 
+single_bytes = [bytes([i]) for i in range(0x100)]
+
 class PaddingError(Exception): pass
 
 def get_chars_per_byte(base_chars):
@@ -415,7 +417,7 @@ def break_aes_ecb_oracle(encrypt, prefix_length=None):
     start_block = math.ceil((prefix_length + prefix_padding) / AES.BLOCK_SIZE)
     # Sort bytes by presence in ASCII alphabet, so we try more likely bytes
     # first.
-    all_bytes = sorted((bytes([b]) for b in range(0x100)), key=is_ascii_text, reverse=True)
+    all_bytes = sorted(single_bytes, key=is_ascii_text, reverse=True)
     bait_text = b'B' * block_size
     for block_number in count(start_block):
         plaintext_so_far = b''
@@ -626,6 +628,15 @@ def break_twister(ciphertext, known_substring, max_key=2**32):
         if known_substring in twister_decrypt(key, ciphertext):
             return key
     raise ValueError('Key not found.')
+
+def break_stream_edit_oracle(edit_oracle, ciphertext=None):
+    """
+    Given an oracle that allows making changes to the plaintext (without
+    revealing it) and internally uses a stream cipher, returns the plaintext.
+    """
+    ciphertext = ciphertext or edit_oracle(0, b'')
+    stream = edit_oracle(0, len(ciphertext) * b'\x00')
+    return xor(ciphertext, stream)
 
 def print_word(i):
     print('{0:032b}'.format(i))
