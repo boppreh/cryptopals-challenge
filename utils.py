@@ -282,6 +282,18 @@ def aes_ctr_encrypt(key, data, nonce, endianess='little'):
     return stream_encrypt(aes_ctr_stream(key, nonce, endianess), data)
 aes_ctr_decrypt = aes_ctr_encrypt
 
+def aes_ctr_edit(key, ciphertext, nonce, offset, replacement):
+    """
+    Decrypts the ciphertext, changes the plaintext and encrypts it again under
+    the same key and nonce.
+    """
+    bytes_list = list(ciphertext)
+    stream = aes_ctr_stream(key, nonce)
+    for i in range(offset): next(stream)
+    for j, byte in enumerate(replacement):
+        bytes_list[offset+j] = next(stream) ^ byte
+    return bytes(bytes_list)
+
 def random_bool():
     """
     Returns a random boolean value.
