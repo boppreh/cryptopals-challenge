@@ -567,6 +567,22 @@ def break_aes_cbc_padding_oracle(padding_oracle, ciphertext, unpad=True):
     else:
         return plaintext
 
+def break_aes_cbc_iv_oracle(decrypt, ciphertext):
+    """
+    Given an AES CBC ciphertext with unknown IV, and an oracle that decrypts
+    arbitrary messages, returns the IV.
+
+    In some cases the oracle only reveals the plaintext if it fails some tests,
+    like containing only ASCII characters. However since we will be passing a
+    corrupted ciphertext, the chance of it containing only ASCII characters is
+    tiny.
+    """
+    blocks = divide(ciphertext, AES.BLOCK_SIZE)
+    blocks[2] = blocks[0]
+    blocks[1] = b'\x00' * AES.BLOCK_SIZE
+    plaintext_blocks = divide(decrypt(b''.join(blocks)), AES.BLOCK_SIZE)
+    return xor(plaintext_blocks[0], plaintext_blocks[2])
+
 def break_aes_ctr_repeated_nonce(ciphertexts, measure=english_score):
     """
     Given a list of ciphertexts that were encrypted with AES CTR mode with the
