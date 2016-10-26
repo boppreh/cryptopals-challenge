@@ -690,4 +690,4 @@ if __name__ == '__main__':
     for name in sorted(os.listdir('.')):
         if name.endswith('.py') and name[0].isdigit():
             print('Testing {}...'.format(name))
-            os.system('python3 "{}"'.format(name))
+            os.system('~/Python-3.5.2/python "{}"'.format(name))
