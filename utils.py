@@ -674,11 +674,18 @@ def insert_aes_ctr_oracle(encrypt, prefix_length, data, padding=b'A'):
     
 def extend_sha1(hash, extension, starting_length=0):
     """
-    Generates candidates of the form (tail, new_hash) for each possible message
-    length. The correct will one will have the property:
+    Given
 
-        tail.ends_with(extension)
-        sha1(key + message + extension) == new_hash 
+        hash = sha1(message)
+
+    for an unknown message, generates candidates of the form (tail, new_hash)
+    for each possible message length. The correct will one will have the
+    property:
+
+        tail.endswith(extension)
+        sha1(message + extension) == new_hash 
+
+    for an unknown message.
     """
     for existing_length in count(starting_length):
         padding = b'\x80' + b'\x00' * ((55 - existing_length) % 64) + (existing_length * 8).to_bytes(8, byteorder='big')
