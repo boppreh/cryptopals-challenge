@@ -672,6 +672,19 @@ def insert_aes_ctr_oracle(encrypt, prefix_length, data, padding=b'A'):
         zeroed_ciphertext_bytes[i] ^= ord(padding) ^ data_byte
     return bytes(zeroed_ciphertext_bytes)
     
+def extend_sha1(hash, extension, starting_length=0):
+    """
+    Generates candidates of the form (tail, new_hash) for each possible message
+    length. The correct will one will have the property:
+
+        tail.ends_with(extension)
+        sha1(key + message + extension) == new_hash 
+    """
+    for existing_length in count(starting_length):
+        padding = b'\x80' + b'\x00' * ((55 - existing_length) % 64) + (existing_length * 8).to_bytes(8, byteorder='big')
+        tail = padding + extension
+        new_hash = sha1(extension, message_length=existing_length + len(tail), state=hash)
+        yield (tail, new_hash)
 
 def print_word(i):
     print('{0:032b}'.format(i))

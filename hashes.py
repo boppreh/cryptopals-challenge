@@ -3,7 +3,8 @@ import struct
 
 def pad(message, length, byteorder='little'):
     message += b'\x80'
-    message += b'\x00' * ((56 - (length + 1) % 64) % 64)
+    # 55 = 64 - 8 (length bytes) - 1 (0x80 already prepended).
+    message += b'\x00' * ((55 - length) % 64)
     message += (length * 8).to_bytes(8, byteorder=byteorder)
     return message
 
