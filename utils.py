@@ -7,7 +7,7 @@ from itertools import chain, cycle, repeat, count, combinations, combinations_wi
 from aes import AES
 from collections import Counter, OrderedDict
 from twister import Twister
-from hashes import sha1, md5
+from hashes import sha1, md5, md4
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -672,25 +672,28 @@ def insert_aes_ctr_oracle(encrypt, prefix_length, data, padding=b'A'):
         zeroed_ciphertext_bytes[i] ^= ord(padding) ^ data_byte
     return bytes(zeroed_ciphertext_bytes)
     
-def extend_sha1(hash, extension, starting_length=0):
+def extend_sha1(hashed, extension, starting_length=0):
+    return extend_hash(sha1, 'big', hashed, extension, starting_length)
+
+def extend_hash(hash_fn, endianness, hashed, extension, starting_length=0):
     """
     Given
 
-        hash = sha1(message)
+        hashed = hash_fn(message)
 
     for an unknown message, generates candidates of the form (tail, new_hash)
     for each possible message length. The correct will one will have the
     property:
 
         tail.endswith(extension)
-        sha1(message + extension) == new_hash 
+        hash_fn(message + extension) == new_hash 
 
     for an unknown message.
     """
     for existing_length in count(starting_length):
-        padding = b'\x80' + b'\x00' * ((55 - existing_length) % 64) + (existing_length * 8).to_bytes(8, byteorder='big')
+        padding = b'\x80' + b'\x00' * ((55 - existing_length) % 64) + (existing_length * 8).to_bytes(8, byteorder=endianness)
         tail = padding + extension
-        new_hash = sha1(extension, message_length=existing_length + len(tail), state=hash)
+        new_hash = hash_fn(extension, message_length=existing_length + len(tail), state=hashed)
         yield (tail, new_hash)
 
 def print_word(i):
