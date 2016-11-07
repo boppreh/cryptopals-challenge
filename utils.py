@@ -315,10 +315,11 @@ def random_number(start, end=None):
         end = start
         start = 0
 
+    n_bytes = math.ceil(math.log2(end-start)/8)
     while True:
         # This looks stupid, but avoids biases. Using mod is not as balanced.
-        number = ord(random_bytes(1))
-        if start <= number < end:
+        number = start + int.from_bytes(random_bytes(n_bytes), 'big')
+        if number < end:
             return number
 
 def random_bytes(n_bytes):
