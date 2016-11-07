@@ -696,6 +696,28 @@ def extend_hash(hash_fn, endianness, hashed, extension, starting_length=0):
         new_hash = hash_fn(extension, message_length=existing_length + len(tail), state=hashed)
         yield (tail, new_hash)
 
+def serve_http(handler, port=8000):
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from threading import Thread
+    from time import sleep
+    class Server(BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get('content-length'))
+            status, response = handler(self.rfile.read(length))
+            print(status, response)
+            self.send_response(status)
+            self.send_header('Content-type', 'application/octet-stream')
+            self.end_headers()
+            self.wfile.write(response)
+    thread = Thread(target=HTTPServer(('localhost', port), Server).serve_forever)
+    thread.daemon = True
+    thread.start()
+    sleep(0.01)
+
+def send_http(data, port=8000):
+    from urllib.request import urlopen
+    return urlopen('http://localhost:{}'.format(port), data=data).read()
+
 def print_word(i):
     print('{0:032b}'.format(i))
 
