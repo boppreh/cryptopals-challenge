@@ -696,7 +696,7 @@ def extend_hash(hash_fn, endianness, hashed, extension, starting_length=0):
         new_hash = hash_fn(extension, message_length=existing_length + len(tail), state=hashed)
         yield (tail, new_hash)
 
-def serve_http(handler, port=8000):
+def serve_http(handler, port=8000, n_requests=None):
     from http.server import BaseHTTPRequestHandler, HTTPServer
     from threading import Thread
     from time import sleep
@@ -704,12 +704,18 @@ def serve_http(handler, port=8000):
         def do_POST(self):
             length = int(self.headers.get('content-length'))
             status, response = handler(self.rfile.read(length))
-            print(status, response)
             self.send_response(status)
             self.send_header('Content-type', 'application/octet-stream')
             self.end_headers()
             self.wfile.write(response)
-    thread = Thread(target=HTTPServer(('localhost', port), Server).serve_forever)
+
+    server = HTTPServer(('localhost', port), Server)
+    def serve():
+        nonlocal n_requests
+        while n_requests > 0:
+            server.handle_request()
+            n_requests -= 1
+    thread = Thread(target=serve if n_requests is not None else server.serve_forever)
     thread.daemon = True
     thread.start()
     sleep(0.01)
