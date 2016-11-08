@@ -764,8 +764,7 @@ class DHClient:
         self.on_receive = on_receive
    
     def link(self, other):
-        other.agree(self.p, self.g, self.public)
-        self._make_shared(other.public)
+        self._make_shared(other.agree(self.p, self.g, self.public))
         self.other_receive = other.receive
         other.other_receive = self.receive
 
@@ -789,6 +788,7 @@ class DHClient:
         self.g = g
         self._make_pair()
         self._make_shared(other_public)
+        return self.public
 
     def encrypt(self, message):
         iv = random_iv()
@@ -802,16 +802,14 @@ class DHMITMParameterInjectionClient(DHClient):
     Malicious Diffie-Hellman client that responds by saying its public key is
     'p', resulting in a shared secret value o zero.
     """
-    def agree(self, p, g, left_public):
+    def agree(self, p, g, other_public):
         self.p = p
         self.g = g
-        self._left_public = left_public
-        self.public = p
         self._make_shared()
+        return p # Attack happens here. This should have been a random value < p.
 
     def link(self, other):
-        other.agree(self.p, self.g, self.public)
-        self._right_public = other.public
+        other.agree(self.p, self.g, self.p) # And attack happens here too. Last value should have been public key.
         self.right_receive = other.receive
         other.other_receive = self.receive
 
