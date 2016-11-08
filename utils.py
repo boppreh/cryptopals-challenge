@@ -759,7 +759,7 @@ class DHClient:
     def __init__(self, p=None, g=None, on_receive=None):
         self.p = p
         self.g = g
-        if p and g:
+        if p:
             self._make_pair()
         self.on_receive = on_receive
    
@@ -819,10 +819,12 @@ class DHMITMParameterInjectionClient(DHClient):
 
 def break_weak_dh(p, g):
     """
-    Given the parameter `p` and a `g` value of either 1, p-1 or p, returns the
+    Given the parameter `p` and a `g` value of either 0, 1, p-1 or p, returns the
     possible shared secrets.
     """
-    if g == 1:
+    if g == 0:
+        yield 0
+    elif g == 1:
         yield 1 
     elif g == p:
         yield 0
@@ -830,7 +832,7 @@ def break_weak_dh(p, g):
         yield 1
         yield p-1
     else:
-        raise ValueError('g must be 1, p-1 or p, got {} instead'.format(g))
+        raise ValueError('g must be 0, 1, p-1 or p, got {} instead'.format(g))
 
 if __name__ == '__main__':
     import os
