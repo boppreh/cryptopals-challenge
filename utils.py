@@ -769,13 +769,13 @@ class DHClient:
         other.other_receive = self.receive
 
     def _make_pair(self):
-        self._private = random_number(self.p)
+        self._private = random_number(1, self.p)
         self.public = pow(self.g, self._private, self.p)
 
     def _make_shared(self, other_public):
-        shared_secret = pow(other_public, self._private, self.p)
+        self.shared_secret = pow(other_public, self._private, self.p)
         max_bytes = math.ceil(math.log2(self.p)/8)
-        self.key = sha1(shared_secret.to_bytes(max_bytes, 'little'))[:16]
+        self.key = sha1(self.shared_secret.to_bytes(max_bytes, 'little'))[:16]
 
     def send(self, message):
         return self.decrypt(self.other_receive(self.encrypt(message)))
@@ -816,6 +816,21 @@ class DHMITMParameterInjectionClient(DHClient):
     def _make_shared(self):
         max_bytes = math.ceil(math.log2(self.p)/8)
         self.key = sha1(b'\x00' * max_bytes)[:16]
+
+def break_weak_dh(p, g):
+    """
+    Given the parameter `p` and a `g` value of either 1, p-1 or p, returns the
+    possible shared secrets.
+    """
+    if g == 1:
+        yield 1 
+    elif g == p:
+        yield 0
+    elif g == p-1:
+        yield 1
+        yield p-1
+    else:
+        raise ValueError('g must be 1, p-1 or p, got {} instead'.format(g))
 
 if __name__ == '__main__':
     import os
