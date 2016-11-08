@@ -698,6 +698,14 @@ def extend_hash(hash_fn, endianness, hashed, extension, starting_length=0):
         yield (tail, new_hash)
 
 def serve_http(handler, port=8000, n_requests=None):
+    """
+    Opens a HTTP webserver that responds to POST requests with
+
+        status, response = handler(body_data)
+
+    If `n_requests` is given, automatically stops the server after serving that
+    number of requests.
+    """
     from http.server import BaseHTTPRequestHandler, HTTPServer
     from threading import Thread
     from time import sleep
@@ -722,6 +730,9 @@ def serve_http(handler, port=8000, n_requests=None):
     sleep(0.01)
 
 def send_http(data, port=8000):
+    """
+    Sends a POST request to a local webserver with the given payload.
+    """
     from urllib.request import urlopen
     return urlopen('http://localhost:{}'.format(port), data=data).read()
 
@@ -738,6 +749,13 @@ def random_ctr_nonce():
     return random_bytes(8)
 
 class DHClient:
+    """
+    Client in a Diffie-Hellman protocol. Is initialized with either p and g
+    or a handler that is called when a message is received. After creating the
+    object call `a.link(b)` to perform the protocol and arrive at a shared key,
+    then use `a.send(b'message')` to send messages from one to another using
+    AES-CBC with a key derived from the SHA1 of the shared secret.
+    """
     def __init__(self, p=None, g=None, on_receive=None):
         self.p = p
         self.g = g
@@ -780,6 +798,10 @@ class DHClient:
         return aes_cbc_decrypt(self.key, ciphertext)
 
 class DHMITMParameterInjectionClient(DHClient):
+    """
+    Malicious Diffie-Hellman client that responds by saying its public key is
+    'p', resulting in a shared secret value o zero.
+    """
     def agree(self, p, g, left_public):
         self.p = p
         self.g = g
