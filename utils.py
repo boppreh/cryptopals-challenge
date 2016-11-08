@@ -737,6 +737,66 @@ def random_aes_key():
 def random_ctr_nonce():
     return random_bytes(8)
 
+class DHClient:
+    def __init__(self, p=None, g=None, on_receive=None):
+        self.p = p
+        self.g = g
+        if p and g:
+            self._make_pair()
+        self.on_receive = on_receive
+   
+    def link(self, other):
+        other.agree(self.p, self.g, self.public)
+        self._make_shared(other.public)
+        self.other_receive = other.receive
+        other.other_receive = self.receive
+
+    def _make_pair(self):
+        self._private = random_number(self.p)
+        self.public = pow(self.g, self._private, self.p)
+
+    def _make_shared(self, other_public):
+        shared_secret = pow(other_public, self._private, self.p)
+        max_bytes = math.ceil(math.log2(self.p)/8)
+        self.key = sha1(shared_secret.to_bytes(max_bytes, 'little'))[:16]
+
+    def send(self, message):
+        return self.decrypt(self.other_receive(self.encrypt(message)))
+
+    def receive(self, ciphertext):
+        return self.encrypt(self.on_receive(self.decrypt(ciphertext)))
+
+    def agree(self, p, g, other_public):
+        self.p = p
+        self.g = g
+        self._make_pair()
+        self._make_shared(other_public)
+
+    def encrypt(self, message):
+        iv = random_iv()
+        return iv + aes_cbc_encrypt(self.key, message, iv)
+
+    def decrypt(self, ciphertext):
+        return aes_cbc_decrypt(self.key, ciphertext)
+
+class DHMITMParameterInjectionClient(DHClient):
+    def agree(self, p, g, left_public):
+        self.p = p
+        self.g = g
+        self._left_public = left_public
+        self.public = p
+        self._make_shared()
+
+    def link(self, other):
+        other.agree(self.p, self.g, self.public)
+        self._right_public = other.public
+        self.right_receive = other.receive
+        other.other_receive = self.receive
+
+    def _make_shared(self):
+        max_bytes = math.ceil(math.log2(self.p)/8)
+        self.key = sha1(b'\x00' * max_bytes)[:16]
+
 if __name__ == '__main__':
     import os
     for name in sorted(os.listdir('.')):
