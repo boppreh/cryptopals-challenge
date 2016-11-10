@@ -8,6 +8,9 @@ from aes import AES
 from collections import Counter, OrderedDict
 from twister import Twister
 from hashes import sha1, md5, md4
+from hashlib import sha256 as _sha256
+
+sha256 = lambda m: _sha256(m).digest()
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
@@ -817,6 +820,26 @@ class DHMITMParameterInjectionClient(DHClient):
         max_bytes = math.ceil(math.log2(self.p)/8)
         self.key = sha1(b'\x00' * max_bytes)[:16]
 
+class SRPServer(DHClient):
+    def __init__(self, p, g, k, password):
+        self.p = p
+        self.g = g
+        self.k = k
+        self.email = email
+        self.password = password
+
+        self.salt = random_bytes(16)
+        self.x = int.from_bytes(sha256(self.salt + password), 'big')
+        self.v = pow(self.g, self._private, self.p)
+
+    def link(self, other):
+        self._make_pair()
+        self.public = self.k * self.v + self.public
+        other.agree(self.p, self.g, self.salt, self.public)
+
+#class SRPClient(DHClient):
+    
+
 def break_weak_dh(p, g):
     """
     Given the parameter `p` and a `g` value of either 0, 1, p-1 or p, returns the
@@ -833,6 +856,8 @@ def break_weak_dh(p, g):
         yield p-1
     else:
         raise ValueError('g must be 0, 1, p-1 or p, got {} instead'.format(g))
+
+NIST_DH_PRIME = 0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff
 
 if __name__ == '__main__':
     import os
