@@ -860,14 +860,34 @@ def break_weak_dh(p, g):
 NIST_DH_PRIME = 0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff
 
 def hmac_sha1(key, message):
-    blocksize = 64
-    if len(key) > blocksize:
+    hmac_length = 64
+    if len(key) > hmac_length:
         key = sha1(key)
-    if len(key) < blocksize:
-        key = key + b'\x00' * (blocksize - len(key))
-    o_key_pad = xor([0x5c] * blocksize, key)
-    i_key_pad = xor([0x36] * blocksize, key)
+    if len(key) < hmac_length:
+        key = key + b'\x00' * (hmac_length - len(key))
+    o_key_pad = xor([0x5c] * hmac_length, key)
+    i_key_pad = xor([0x36] * hmac_length, key)
     return sha1(o_key_pad + sha1(i_key_pad + message))
+
+from time import sleep
+def insecure_comparison(a, b, delay=0.005):
+    for byte_a, byte_b in zip(a, b):
+        if byte_a != byte_b:
+            return False
+        sleep(delay)
+    return len(a) == len(b)
+
+def measure_time(fn):
+    start_time = time.time()
+    fn()
+    return time.time() - start_time
+
+def break_hmac_comparison_timing(test, hmac_length=20):
+    final = b''
+    test_byte = lambda byte: test(final + byte + b'\x00' * (hmac_length - len(final) - 1))
+    for i in range(hmac_length):
+        final += max(single_bytes, key=lambda b: measure_time(lambda: test_byte(b)))
+    return final
 
 if __name__ == '__main__':
     import os
