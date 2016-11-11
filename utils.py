@@ -872,6 +872,9 @@ def hmac_sha1(key, message):
 
 from time import sleep
 def insecure_comparison(a, b, delay=0.005):
+    """
+    Compares two byte arrays character by character with an artificial delay.
+    """
     for byte_a, byte_b in zip(a, b):
         if byte_a != byte_b:
             return False
@@ -879,6 +882,10 @@ def insecure_comparison(a, b, delay=0.005):
     return len(a) == len(b)
 
 def measure_time(fn, average=3):
+    """
+    Calls `fn` `average` times and returns the average number of seconds for
+    each call.
+    """
     start_time = time.time()
     for i in range(average):
         fn()
@@ -886,6 +893,13 @@ def measure_time(fn, average=3):
 
 import sys
 def break_hmac_comparison_timing(test_time, hmac_length=20, average=1):
+    """
+    Given a test that takes longer when the start of a string is correct,
+    return the correct string. Useful for HMACs.
+
+    hmac_length is the length of the target array and `average` is how many
+    times to run each test to get a more accurate figure.
+    """
     candidates_heap = [(0, b'')]
     while True:
         t, candidate = heappop(candidates_heap)
