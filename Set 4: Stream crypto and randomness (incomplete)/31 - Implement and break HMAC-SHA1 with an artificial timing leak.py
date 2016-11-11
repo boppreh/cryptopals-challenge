@@ -14,9 +14,8 @@ expected = None
 def test_hmac(file, signature):
     global expected
     expected = hmac_sha1(key, file)
-    return insecure_comparison(signature, expected)
+    return insecure_comparison(signature, expected, delay=0.005)
 
 assert not test_hmac(b'foo', b'')
     
-print(expected)
-assert break_hmac_comparison_timing(lambda c: test_hmac(b'foo', c)) == expected
+assert next(break_hmac_comparison_timing(lambda c: test_hmac(b'foo', c))) == expected

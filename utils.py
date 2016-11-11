@@ -9,6 +9,7 @@ from collections import Counter, OrderedDict
 from twister import Twister
 from hashes import sha1, md5, md4
 from hashlib import sha256 as _sha256
+from heapq import heappush, heappop
 
 sha256 = lambda m: _sha256(m).digest()
 
@@ -877,17 +878,23 @@ def insecure_comparison(a, b, delay=0.005):
         sleep(delay)
     return len(a) == len(b)
 
-def measure_time(fn):
+def measure_time(fn, average=3):
     start_time = time.time()
-    fn()
-    return time.time() - start_time
+    for i in range(average):
+        fn()
+    return (time.time() - start_time) / average
 
-def break_hmac_comparison_timing(test, hmac_length=20):
-    final = b''
-    test_byte = lambda byte: test(final + byte + b'\x00' * (hmac_length - len(final) - 1))
-    for i in range(hmac_length):
-        final += max(single_bytes, key=lambda b: measure_time(lambda: test_byte(b)))
-    return final
+import sys
+def break_hmac_comparison_timing(test_time, hmac_length=20, average=1):
+    candidates_heap = [(0, b'')]
+    while True:
+        t, candidate = heappop(candidates_heap)
+        if len(candidate) == hmac_length:
+            yield candidate
+        else:
+            for byte in single_bytes:
+                full = candidate + byte + b'\x00' * (hmac_length - len(candidate) - 1)
+                heappush(candidates_heap, (-measure_time(lambda: test_time(full), average), candidate + byte))
 
 if __name__ == '__main__':
     import os
