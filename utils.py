@@ -1019,7 +1019,52 @@ def rsa_encrypt(public, plaintext):
 def rsa_decrypt(private, ciphertext):
     d, n = private
     return from_int(pow(to_int(ciphertext), d, n))
-    
+
+def break_rsa_crt(ciphertext1, public1, ciphertext2, public2, ciphertext3, public3):
+    """
+    Given three pairs (ciphertext, RSA public key) of the same plaintext and,
+    e=3, uses the Chinese Remainder Theorem to extract the plaintext.
+    """
+    e1, n1 = public1
+    e2, n2 = public2
+    e3, n3 = public3
+    assert e1 == e2 == e3
+    c1 = to_int(ciphertext1)
+    c2 = to_int(ciphertext2)
+    c3 = to_int(ciphertext3)
+    ms1 = n2 * n3
+    ms2 = n1 * n3
+    ms3 = n1 * n2
+    result = ((c1*ms1*invmod(ms1, n1)) + (c2*ms2*invmod(ms2, n2)) + (c3*ms3*invmod(ms3, n3))) % (n1 * n2 * n3)
+    return from_int(cbrt(result))
+
+def binary_search(n, condition):
+    """
+    Searches the collection range(n) to find the integer such that
+    `condition(i) == 0`.
+    """
+    low = 0
+    high = n
+
+    while low < high:
+        mid = (low + high) // 2
+        result = condition(mid)
+        if result > 0:
+            assert high != mid
+            high = mid
+        elif result < 0:
+            assert low != mid
+            low = mid
+        else:
+            return mid
+
+def sqrt(n):
+    """ Square root, suitable for very large numbers. """
+    return binary_search(n, lambda i: i**3 - n)
+def cbrt(n):
+    """ Cube root, suitable for very large numbers. """
+    return binary_search(n, lambda i: i**3 - n)
+        
 
 if __name__ == '__main__':
     import os
