@@ -862,8 +862,14 @@ class SRPServer(SRPParty):
     def test(self, hmac_value):
         return hmac_value == hmac_sha256(self.K, self.salt)
 
-#class SRPClient(DHClient):
-    
+def break_srp_zero_key(server, key=0):
+    """
+    Given an SRPServer instance, performs a key agreement using 0 as public,
+    client value, which makes the server final key K=0 regardless of password.
+    Returns the salt given by the server and the HMAC key K.
+    """
+    salt, B = server.agree(key)
+    return salt, sha256(from_int(0))
 
 def break_weak_dh(p, g):
     """
