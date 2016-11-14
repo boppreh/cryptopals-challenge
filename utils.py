@@ -17,7 +17,8 @@ def from_int(a, endianness='big'):
     if not a: return b'\x00'
     n_bytes = math.ceil(math.log2(a) / 8) + 1
     return a.to_bytes(n_bytes, endianness)
-to_int = lambda b: int(to_hex(b), 16)
+def to_int(a, endianness='big'):
+    return int.from_bytes(a, byteorder='big')
 
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
