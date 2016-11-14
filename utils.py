@@ -5,7 +5,7 @@ import re
 from base64 import b64encode, b64decode
 from itertools import chain, cycle, repeat, count, combinations, combinations_with_replacement, product, islice
 from aes import AES
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, namedtuple
 from twister import Twister
 from hashes import sha1, md5, md4
 from hashlib import sha256 as _sha256
@@ -15,7 +15,7 @@ sha256 = lambda m: _sha256(m).digest()
 
 def from_int(a, endianness='big'):
     if not a: return b'\x00'
-    n_bytes = math.ceil(math.log2(a) / 8) + 1
+    n_bytes = math.ceil(math.log2(a) / 8)
     return a.to_bytes(n_bytes, endianness)
 def to_int(a, endianness='big'):
     return int.from_bytes(a, byteorder='big')
@@ -947,6 +947,79 @@ def break_hmac_comparison_timing(test_time, hmac_length=20, average=1):
             for byte in single_bytes:
                 full = candidate + byte + b'\x00' * (hmac_length - len(candidate) - 1)
                 heappush(candidates_heap, (-measure_time(lambda: test_time(full), average), candidate + byte))
+
+def is_prime(n, k=10):
+    """
+    Miller-Rabin primality test.
+    """
+    if n <= 3 or n % 2 == 0:
+        return n in (2, 3)
+
+    r = 0
+    d = n - 1
+    while d % 2 == 0:
+        r += 1
+        d //= 2
+
+    for i in range(k):
+        a = random_number(2, n-1)        
+        x = pow(a, d, n)
+        if x == 1 or x == n - 1:
+            continue
+        for j in range(r-1):
+            x = pow(x, 2, n)
+            if x == 1:
+                return False
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
+
+def invmod(a, n):
+    """
+    Extended Euclidean from Wikipedia for modular inverse in prime fields.
+    """
+    t = 0
+    r = n
+    newt = 1
+    newr = a
+    while newr:
+        quotient = r // newr
+        t, newt = newt, t - quotient * newt 
+        r, newr = newr, r - quotient * newr
+    if r > 1:
+        raise ValueError('{} is not invertible modulo {}'.format(a, n)) 
+    return (t + n) % n
+
+def random_prime(start, end=None):
+    while True:
+        n = random_number(start, end)
+        if is_prime(n):
+            return n
+
+
+KeyPair = namedtuple('KeyPair', 'public private')
+def generate_rsa_keypair(max_random, e=3):
+    while True:
+        p = random_prime(max_random)
+        q = random_prime(max_random)
+        n = p * q
+        et = (p-1) * (q-1)
+        try:
+            d = invmod(e, et)
+        except ValueError:
+            continue
+        return KeyPair(public=(e, n), private=(d, n))
+
+def rsa_encrypt(public, plaintext):
+    e, n = public
+    return from_int(pow(to_int(plaintext), e, n))
+
+def rsa_decrypt(private, ciphertext):
+    d, n = private
+    return from_int(pow(to_int(ciphertext), d, n))
+    
 
 if __name__ == '__main__':
     import os
