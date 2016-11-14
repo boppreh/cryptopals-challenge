@@ -13,6 +13,12 @@ from heapq import heappush, heappop
 
 sha256 = lambda m: _sha256(m).digest()
 
+def from_int(a, endianness='big'):
+    if not a: return b'\x00'
+    n_bytes = math.ceil(math.log2(a) / 8) + 1
+    return a.to_bytes(n_bytes, endianness)
+to_int = lambda b: int(to_hex(b), 16)
+
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
 
@@ -821,22 +827,40 @@ class DHMITMParameterInjectionClient(DHClient):
         max_bytes = math.ceil(math.log2(self.p)/8)
         self.key = sha1(b'\x00' * max_bytes)[:16]
 
-class SRPServer(DHClient):
+class SRPParty:
     def __init__(self, p, g, k, password):
         self.p = p
         self.g = g
         self.k = k
-        self.email = email
         self.password = password
 
-        self.salt = random_bytes(16)
-        self.x = int.from_bytes(sha256(self.salt + password), 'big')
-        self.v = pow(self.g, self._private, self.p)
+class SRPClient(SRPParty):
+    def link(self, server):
+        a = random_number(self.p)
+        A = pow(self.g, a, self.p)
+        self.salt, B = server.agree(A)
+        x = to_int(sha256(self.salt + self.password))
+        u = to_int(sha256(from_int(A) + from_int(B)))
+        S = pow(B - self.k * pow(self.g, x, self.p), a + u*x, self.p)
+        self.K = sha256(from_int(S))
 
-    def link(self, other):
-        self._make_pair()
-        self.public = self.k * self.v + self.public
-        other.agree(self.p, self.g, self.salt, self.public)
+    def verify(self, server):
+        return server.test(hmac_sha256(self.K, self.salt))
+
+class SRPServer(SRPParty):
+    def agree(self, A):
+        self.salt = random_bytes(16)
+        x = to_int(sha256(self.salt + self.password))
+        v = pow(self.g, x, self.p)
+        b = random_number(self.p)
+        B = (self.k*v + pow(self.g, b, self.p)) % self.p
+        u = to_int(sha256(from_int(A) + from_int(B)))
+        S = pow(A * pow(v, u, self.p), b, self.p)
+        self.K = sha256(from_int(S))
+        return self.salt, B
+
+    def test(self, hmac_value):
+        return hmac_value == hmac_sha256(self.K, self.salt)
 
 #class SRPClient(DHClient):
     
@@ -860,15 +884,22 @@ def break_weak_dh(p, g):
 
 NIST_DH_PRIME = 0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca237327ffffffffffffffff
 
-def hmac_sha1(key, message):
+def hmac(key, message, fn):
     hmac_length = 64
     if len(key) > hmac_length:
-        key = sha1(key)
+        key = fn(key)
     if len(key) < hmac_length:
         key = key + b'\x00' * (hmac_length - len(key))
     o_key_pad = xor([0x5c] * hmac_length, key)
     i_key_pad = xor([0x36] * hmac_length, key)
-    return sha1(o_key_pad + sha1(i_key_pad + message))
+    return fn(o_key_pad + fn(i_key_pad + message))
+
+def hmac_sha1(key, message):
+    return hmac(key, message, sha1)
+
+def hmac_sha256(key, message):
+    return hmac(key, message, sha256)
+
 
 from time import sleep
 def insecure_comparison(a, b, delay=0.005):
