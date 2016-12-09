@@ -20,6 +20,13 @@ def from_int(a, endianness='big'):
 def to_int(a, endianness='big'):
     return int.from_bytes(a, byteorder='big')
 
+def increment(b, start=-1):
+    if b[start] == 0xFF:
+        b[start] = 0
+        increment(b, start-1)
+    else:
+        b[start] += 1
+
 bin_chars = '01'
 hex_chars = '0123456789abcdef'
 
@@ -1019,6 +1026,14 @@ def rsa_encrypt(public, plaintext):
 def rsa_decrypt(private, ciphertext):
     d, n = private
     return from_int(pow(to_int(ciphertext), d, n))
+
+def break_rsa_decryption_oracle(decrypt, ciphertext, public):
+    e, n = public
+    #s = random_number(2, n)
+    s = 2
+    hidden_ciphertext = from_int((to_int(ciphertext) * pow(s, e, n)) % n)
+    hidden_plaintext = decrypt(hidden_ciphertext)
+    return from_int((to_int(hidden_plaintext) * invmod(s, n)) % n)
 
 def break_rsa_crt(ciphertext1, public1, ciphertext2, public2, ciphertext3, public3):
     """
