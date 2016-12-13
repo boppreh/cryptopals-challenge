@@ -1027,6 +1027,12 @@ def rsa_decrypt(private, ciphertext):
     d, n = private
     return from_int(pow(to_int(ciphertext), d, n))
 
+def rsa_sign(private, message_hash):
+    return rsa_encrypt(private, message_hash)
+
+def rsa_verify(public, message_hash, signature):
+    assert rsa_decrypt(public, signature) == message_hash
+
 def break_rsa_decryption_oracle(decrypt, ciphertext, public):
     e, n = public
     #s = random_number(2, n)
