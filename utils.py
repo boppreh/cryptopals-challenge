@@ -1040,7 +1040,24 @@ def rsa_verify_pkcs15_buggy(public, message_hash, signature):
     decrypted = rsa_decrypt(public, signature)
     assert re.match(b'\x01\xFF+\x00' + message_hash, decrypted)
 
+def break_rsa_signature_pkcs15_buggy(message):
+    """
+    Given a small message to be signed with e=3 using PKCS1.5, computes a fake
+    "signature" by simply adding the required padding and taking an approximate
+    cube root (because e=3).
+
+    This will corrupt the lower bits of the decrypted signature on the
+    verifier, but some software only looks at the upper bits.
+    """
+    return from_int(cbrt(to_int(b'\x01\xFF\x00' + message + b'\xFF' + b'\x00' * (5*len(message))), exact=False))
+
 def break_rsa_decryption_oracle(decrypt, ciphertext, public):
+    """
+    Given an oracle that decrypts any given ciphertext, except the one we are
+    interested in (e.g. because it only decrypts each ciphertext once and ours
+    was already used), derives a new ciphertext whose plaintext can be
+    converted to our target plaintext.
+    """
     e, n = public
     s = random_number(2, n)
     hidden_ciphertext = from_int((to_int(ciphertext) * pow(s, e, n)) % n)
