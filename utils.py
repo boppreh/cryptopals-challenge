@@ -1033,10 +1033,16 @@ def rsa_sign(private, message_hash):
 def rsa_verify(public, message_hash, signature):
     assert rsa_decrypt(public, signature) == message_hash
 
+def rsa_sign_pkcs15(private, message_hash):
+    return rsa_sign(private, b'\x01\xFF\xFF\xFF\xFF\xFF\xFF\x00' + message_hash)
+
+def rsa_verify_pkcs15_buggy(public, message_hash, signature):
+    decrypted = rsa_decrypt(public, signature)
+    assert re.match(b'\x01\xFF+\x00' + message_hash, decrypted)
+
 def break_rsa_decryption_oracle(decrypt, ciphertext, public):
     e, n = public
-    #s = random_number(2, n)
-    s = 2
+    s = random_number(2, n)
     hidden_ciphertext = from_int((to_int(ciphertext) * pow(s, e, n)) % n)
     hidden_plaintext = decrypt(hidden_ciphertext)
     return from_int((to_int(hidden_plaintext) * invmod(s, n)) % n)
@@ -1059,7 +1065,7 @@ def break_rsa_crt(ciphertext1, public1, ciphertext2, public2, ciphertext3, publi
     result = ((c1*ms1*invmod(ms1, n1)) + (c2*ms2*invmod(ms2, n2)) + (c3*ms3*invmod(ms3, n3))) % (n1 * n2 * n3)
     return from_int(cbrt(result))
 
-def binary_search(n, condition):
+def binary_search(n, condition, exact=True):
     """
     Searches the collection range(n) to find the integer such that
     `condition(i) == 0`.
@@ -1071,20 +1077,26 @@ def binary_search(n, condition):
         mid = (low + high) // 2
         result = condition(mid)
         if result > 0:
-            assert high != mid
-            high = mid
+            if high != mid:
+                high = mid
+            else:
+                assert not exact
+                return mid
         elif result < 0:
-            assert low != mid
-            low = mid
+            if low != mid:
+                low = mid
+            else:
+                assert not exact
+                return mid
         else:
             return mid
 
-def sqrt(n):
+def sqrt(n, exact=True):
     """ Square root, suitable for very large numbers. """
-    return binary_search(n, lambda i: i**3 - n)
-def cbrt(n):
+    return binary_search(n, lambda i: i**2 - n, exact)
+def cbrt(n, exact=True):
     """ Cube root, suitable for very large numbers. """
-    return binary_search(n, lambda i: i**3 - n)
+    return binary_search(n, lambda i: i**3 - n, exact)
         
 
 if __name__ == '__main__':
