@@ -1114,6 +1114,30 @@ def sqrt(n, exact=True):
 def cbrt(n, exact=True):
     """ Cube root, suitable for very large numbers. """
     return binary_search(n, lambda i: i**3 - n, exact)
+
+def generate_dsa_keypair(p, q, g):
+    x = random_number(1, q) 
+    return KeyPair(public=(p, q, g, pow(g, x, p)), private=(p, q, g,x))
+
+def dsa_sign(private, message_hash):
+    p, q, g, x = private
+    while True:
+        k = random_number(1, q)
+        r = pow(g, k, p) % q
+        if r == 0: continue
+        s = (invmod(k, q) * (to_int(message_hash) + x * r)) % q
+        if s == 0: continue
+        return r, s
+
+def dsa_verify(public, message_hash, signature):
+    p, q, g, y = public
+    r, s = signature
+    assert 0 < r < q and 0 < s < q
+    w = invmod(s, q)
+    u1 = (to_int(message_hash) * w) % q
+    u2 = (r * w) % q
+    v = (pow(g, u1, p) * pow(y, u2, p)) % p % q
+    assert v == r
         
 
 if __name__ == '__main__':
