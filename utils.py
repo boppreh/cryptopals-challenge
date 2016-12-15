@@ -1151,6 +1151,14 @@ def break_dsa_known_k(public, message_hash, signature, k):
     assert dsa_sign(private, message_hash, k=k) == signature
     return private
 
+def break_dsa_brute_force_k(public, message_hash, signature, ks):
+    for k in ks:
+        try:
+            return break_dsa_known_k(public, message_hash, signature, k)
+        except AssertionError:
+            continue
+    raise ValueError()
+
 if __name__ == '__main__':
     import os
     for name in sorted(os.listdir('.')):
