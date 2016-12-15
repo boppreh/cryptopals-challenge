@@ -1115,6 +1115,12 @@ def cbrt(n, exact=True):
     """ Cube root, suitable for very large numbers. """
     return binary_search(n, lambda i: i**3 - n, exact)
 
+DSA_P = 0x800000000000000089e1855218a0e7dac38136ffafa72eda7859f2171e25e65eac698c1702578b07dc2a1076da241c76c62d374d8389ea5aeffd3226a0530cc565f3bf6b50929139ebeac04f48c3c84afb796d61e5a4f9a8fda812ab59494232c7d2b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc871a584471bb1
+
+DSA_Q = 0xf4f47f05794b256174bba6e9b396a7707e563c5b
+
+DSA_G = 0x5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119458fef538b8fa4046c8db53039db620c094c9fa077ef389b5322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a0470f5b64c36b625a097f1651fe775323556fe00b3608c887892878480e99041be601a62166ca6894bdd41a7054ec89f756ba9fc95302291
+
 def generate_dsa_keypair(p, q, g):
     x = random_number(1, q) 
     return KeyPair(public=(p, q, g, pow(g, x, p)), private=(p, q, g,x))
@@ -1144,6 +1150,7 @@ def dsa_verify(public, message_hash, signature):
     assert v == r
 
 def break_dsa_known_k(public, message_hash, signature, k):
+    assert k != 0
     p, q, g, y = public
     r, s = signature
     x = ((s * k) - to_int(message_hash)) * invmod(r, q) % q
@@ -1153,6 +1160,7 @@ def break_dsa_known_k(public, message_hash, signature, k):
 
 def break_dsa_brute_force_k(public, message_hash, signature, ks):
     for k in ks:
+        if not k: continue
         try:
             return break_dsa_known_k(public, message_hash, signature, k)
         except AssertionError:
