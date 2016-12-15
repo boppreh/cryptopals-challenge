@@ -15,7 +15,7 @@ sha256 = lambda m: _sha256(m).digest()
 
 def from_int(a, endianness='big'):
     if not a: return b'\x00'
-    n_bytes = math.ceil(math.log2(a) / 8)
+    n_bytes = math.ceil(math.log2(a+1) / 8)
     return a.to_bytes(n_bytes, endianness)
 def to_int(a, endianness='big'):
     return int.from_bytes(a, byteorder='big')
@@ -1081,6 +1081,20 @@ def break_rsa_crt(ciphertext1, public1, ciphertext2, public2, ciphertext3, publi
     ms3 = n1 * n2
     result = ((c1*ms1*invmod(ms1, n1)) + (c2*ms2*invmod(ms2, n2)) + (c3*ms3*invmod(ms3, n3))) % (n1 * n2 * n3)
     return from_int(cbrt(result))
+
+def break_rsa_parity_oracle(parity, ciphertext, public):
+    e, n = public
+    partial = to_int(ciphertext) 
+    low = 0
+    high = n
+    while low != high:
+        mid = (low + high) // 2 
+        partial = (partial * pow(2, e, n)) % n
+        if parity(from_int(partial)):
+            low = mid
+        else:
+            high = mid
+    return from_int(mid)
 
 def binary_search(n, condition, exact=True):
     """
