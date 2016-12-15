@@ -1122,10 +1122,17 @@ DSA_Q = 0xf4f47f05794b256174bba6e9b396a7707e563c5b
 DSA_G = 0x5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119458fef538b8fa4046c8db53039db620c094c9fa077ef389b5322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a0470f5b64c36b625a097f1651fe775323556fe00b3608c887892878480e99041be601a62166ca6894bdd41a7054ec89f756ba9fc95302291
 
 def generate_dsa_keypair(p, q, g):
+    """
+    Generates a new DSA public/private keypair from the given parameters.
+    Note the parameters will be included in the public and private keys.
+    """
     x = random_number(1, q) 
     return KeyPair(public=(p, q, g, pow(g, x, p)), private=(p, q, g,x))
 
 def generate_dsa_public(private):
+    """
+    From a private DSA key, generate the corresponding public key.
+    """
     p, q, g, x = private
     return (p, q, g, pow(g, x, p))
 
@@ -1150,6 +1157,10 @@ def dsa_verify(public, message_hash, signature):
     assert v == r
 
 def break_dsa_known_k(public, message_hash, signature, k):
+    """
+    Given a signed message with a known k, and the public key corresponding to
+    the signature, return the private key.
+    """
     assert k != 0
     p, q, g, y = public
     r, s = signature
@@ -1159,13 +1170,35 @@ def break_dsa_known_k(public, message_hash, signature, k):
     return private
 
 def break_dsa_brute_force_k(public, message_hash, signature, ks):
+    """
+    Given a signed message with a known weak k, and the public key
+    corresponding to the signature, brute force the value of to find
+    the private key.
+    """
     for k in ks:
         if not k: continue
         try:
             return break_dsa_known_k(public, message_hash, signature, k)
         except AssertionError:
             continue
-    raise ValueError()
+    raise ValueError('Weak k not found.')
+
+def break_dsa_reused_k(public, signed_messages):
+    """
+    Given a DSA public key, and a list of (message_hash, signature) pairs
+    signed with the corresponding private key, try to find a pair of signatures
+    that reused the nonce k and return the private key.
+    """
+    for a, b in combinations(signed_messages, 2):
+        m_a, (r_a, s_a) = a
+        m_b, (r_b, s_b) = b
+        k = (to_int(m_a) - to_int(m_b)) * invmod(s_a - s_b, DSA_Q) % DSA_Q
+        try:
+            private = break_dsa_known_k(public, m_a, (r_a, s_a), k)
+            return private
+        except AssertionError:
+            continue
+    raise ValueError('No reused k found.')
 
 if __name__ == '__main__':
     import os

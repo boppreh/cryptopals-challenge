@@ -15,13 +15,5 @@ def get_candidates():
         dsa_verify(public, m, (r, s))
         yield m, (r, s)
 
-for a, b in combinations(get_candidates(), 2):
-    m_a, (r_a, s_a) = a
-    m_b, (r_b, s_b) = b
-    k = (to_int(m_a) - to_int(m_b)) * invmod(s_a - s_b, DSA_Q) % DSA_Q
-    try:
-        private = break_dsa_known_k(public, m_a, (r_a, s_a), k)
-        p, q, g, x = private
-        assert sha1(hex(x)[2:].encode('ascii')) == from_hex('ca8f6f7c66fa362d40760d135b763eb8527d3d52')
-    except AssertionError:
-        continue
+p, q, g, x = break_dsa_reused_k(public, get_candidates())
+assert sha1(hex(x)[2:].encode('ascii')) == from_hex('ca8f6f7c66fa362d40760d135b763eb8527d3d52')
