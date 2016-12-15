@@ -1119,10 +1119,14 @@ def generate_dsa_keypair(p, q, g):
     x = random_number(1, q) 
     return KeyPair(public=(p, q, g, pow(g, x, p)), private=(p, q, g,x))
 
-def dsa_sign(private, message_hash):
+def generate_dsa_public(private):
+    p, q, g, x = private
+    return (p, q, g, pow(g, x, p))
+
+def dsa_sign(private, message_hash, k=None):
     p, q, g, x = private
     while True:
-        k = random_number(1, q)
+        k = random_number(1, q) if k is None else k
         r = pow(g, k, p) % q
         if r == 0: continue
         s = (invmod(k, q) * (to_int(message_hash) + x * r)) % q
@@ -1138,7 +1142,14 @@ def dsa_verify(public, message_hash, signature):
     u2 = (r * w) % q
     v = (pow(g, u1, p) * pow(y, u2, p)) % p % q
     assert v == r
-        
+
+def break_dsa_known_k(public, message_hash, signature, k):
+    p, q, g, y = public
+    r, s = signature
+    x = ((s * k) - to_int(message_hash)) * invmod(r, q) % q
+    private = (p, q, g, x)
+    assert dsa_sign(private, message_hash, k=k) == signature
+    return private
 
 if __name__ == '__main__':
     import os
