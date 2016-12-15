@@ -1136,20 +1136,20 @@ def generate_dsa_public(private):
     p, q, g, x = private
     return (p, q, g, pow(g, x, p))
 
-def dsa_sign(private, message_hash, k=None):
+def dsa_sign(private, message_hash, k=None, allow_zero=False):
     p, q, g, x = private
     while True:
         k = random_number(1, q) if k is None else k
         r = pow(g, k, p) % q
-        if r == 0: continue
+        if r == 0 and not allow_zero: continue
         s = (invmod(k, q) * (to_int(message_hash) + x * r)) % q
-        if s == 0: continue
+        if s == 0 and not allow_zero: continue
         return r, s
 
-def dsa_verify(public, message_hash, signature):
+def dsa_verify(public, message_hash, signature, allow_zero=False):
     p, q, g, y = public
     r, s = signature
-    assert 0 < r < q and 0 < s < q
+    assert (0 < r < q and 0 < s < q) or allow_zero
     w = invmod(s, q)
     u1 = (to_int(message_hash) * w) % q
     u2 = (r * w) % q
@@ -1199,6 +1199,18 @@ def break_dsa_reused_k(public, signed_messages):
         except AssertionError:
             continue
     raise ValueError('No reused k found.')
+
+def forge_dsa_magic_signature(public):
+    """
+    Given a DSA public that was created with parameter g = p+1, return a "magic"
+    signature that validates against any string.
+    """
+    p, q, g, y = public
+    assert g == p + 1
+    z = 2
+    r = pow(y, z, p) % q
+    s = (r * invmod(z, q)) % q
+    return r, s
 
 if __name__ == '__main__':
     import os
